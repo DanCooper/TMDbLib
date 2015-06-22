@@ -9,6 +9,7 @@ using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Reviews;
 using TMDbLib.Utilities;
+using Credits = TMDbLib.Objects.Movies.Credits;
 
 namespace TMDbLib.Client
 {
@@ -67,8 +68,8 @@ namespace TMDbLib.Client
             if (response.Data == null) return null;
 
             // Patch up data, so that the end user won't notice that we share objects between request-types.
-            if (response.Data.Trailers != null)
-                response.Data.Trailers.Id = response.Data.Id;
+            if (response.Data.Videos != null)
+                response.Data.Videos.Id = response.Data.Id;
 
             if (response.Data.AlternativeTitles != null)
                 response.Data.AlternativeTitles.Id = response.Data.Id;
@@ -89,7 +90,7 @@ namespace TMDbLib.Client
             {
                 response.Data.AccountStates.Id = response.Data.Id;
                 // Do some custom deserialization, since TMDb uses a property that changes type we can't use automatic deserialization
-                DeserializeAccountStatesRating(response.Data.AccountStates, response.Content);
+                CustomDeserialization.DeserializeAccountStatesRating(response.Data.AccountStates, response.Content);
             }
 
             return response.Data;
@@ -159,9 +160,9 @@ namespace TMDbLib.Client
             return GetMovieMethod<Releases>(movieId, MovieMethods.Releases, dateFormat: "yyyy-MM-dd");
         }
 
-        public Trailers GetMovieTrailers(int movieId)
+        public ResultContainer<Video> GetMovieVideos(int movieId)
         {
-            return GetMovieMethod<Trailers>(movieId, MovieMethods.Trailers);
+            return GetMovieMethod<ResultContainer<Video>>(movieId, MovieMethods.Videos);
         }
 
         public TranslationsContainer GetMovieTranslations(int movieId)
@@ -169,14 +170,14 @@ namespace TMDbLib.Client
             return GetMovieMethod<TranslationsContainer>(movieId, MovieMethods.Translations);
         }
 
-        public SearchContainer<MovieResult> GetMovieSimilarMovies(int movieId, int page = 0)
+        public SearchContainer<MovieResult> GetMovieSimilar(int movieId, int page = 0)
         {
-            return GetMovieSimilarMovies(movieId, DefaultLanguage, page);
+            return GetMovieSimilar(movieId, DefaultLanguage, page);
         }
 
-        public SearchContainer<MovieResult> GetMovieSimilarMovies(int movieId, string language, int page = 0)
+        public SearchContainer<MovieResult> GetMovieSimilar(int movieId, string language, int page = 0)
         {
-            return GetMovieMethod<SearchContainer<MovieResult>>(movieId, MovieMethods.SimilarMovies, page: page, language: language, dateFormat: "yyyy-MM-dd");
+            return GetMovieMethod<SearchContainer<MovieResult>>(movieId, MovieMethods.Similar, page: page, language: language, dateFormat: "yyyy-MM-dd");
         }
 
         public SearchContainer<Review> GetMovieReviews(int movieId, int page = 0)
@@ -210,7 +211,7 @@ namespace TMDbLib.Client
         /// <param name="movieId">The id of the movie to get the account states for</param>
         /// <remarks>Requires a valid user session</remarks>
         /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public MovieAccountState GetMovieAccountState(int movieId)
+        public AccountState GetMovieAccountState(int movieId)
         {
             RequireSessionId(SessionType.UserSession);
 
@@ -219,12 +220,12 @@ namespace TMDbLib.Client
             request.AddUrlSegment("method", MovieMethods.AccountStates.GetDescription());
             request.AddParameter("session_id", SessionId);
 
-            IRestResponse<MovieAccountState> response = _client.Get<MovieAccountState>(request);
+            IRestResponse<AccountState> response = _client.Get<AccountState>(request);
 
             // Do some custom deserialization, since TMDb uses a property that changes type we can't use automatic deserialization
             if (response.Data != null)
             {
-                DeserializeAccountStatesRating(response.Data, response.Content);
+                CustomDeserialization.DeserializeAccountStatesRating(response.Data, response.Content);
             }
 
             return response.Data;
@@ -302,18 +303,6 @@ namespace TMDbLib.Client
             IRestResponse<SearchContainer<MovieResult>> resp = _client.Get<SearchContainer<MovieResult>>(req);
 
             return resp.Data;
-        }
-
-        private static void DeserializeAccountStatesRating(MovieAccountState accountState, string responseContent)
-        {
-            const string selector = @"""rated"":{""value"":(?<value>\d+(?:\.\d{1,2}))}";
-            Regex regex = new Regex(selector, RegexOptions.IgnoreCase);
-            Match match = regex.Match(responseContent);
-            if (match.Success)
-            {
-                accountState.Rating = Double.Parse(match.Groups["value"].Value,
-                    CultureInfo.InvariantCulture.NumberFormat);
-            }
         }
     }
 }

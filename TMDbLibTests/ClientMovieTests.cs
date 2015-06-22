@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -8,17 +9,20 @@ using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Reviews;
 using TMDbLibTests.Helpers;
+using Cast = TMDbLib.Objects.Movies.Cast;
+using Credits = TMDbLib.Objects.Movies.Credits;
 
 namespace TMDbLibTests
 {
     [TestClass]
     public class ClientMovieTests
     {
+        private const int Avatar = 19995;
         private const int AGoodDayToDieHard = 47964;
         private const int TheDarkKnightRises = 49026;
+        private const int MadMaxFuryRoad = 76341;
         private const string AGoodDayToDieHardImdb = "tt1606378";
         private const string TheDarkKnightRisesImdb = "tt1345836";
-        private const int Avatar = 19995;
 
         private static Dictionary<MovieMethods, Func<Movie, object>> _methods;
         private TestConfig _config;
@@ -44,9 +48,9 @@ namespace TMDbLibTests
             _methods[MovieMethods.Images] = movie => movie.Images;
             _methods[MovieMethods.Keywords] = movie => movie.Keywords;
             _methods[MovieMethods.Releases] = movie => movie.Releases;
-            _methods[MovieMethods.Trailers] = movie => movie.Trailers;
+            _methods[MovieMethods.Videos] = movie => movie.Videos;
             _methods[MovieMethods.Translations] = movie => movie.Translations;
-            _methods[MovieMethods.SimilarMovies] = movie => movie.SimilarMovies;
+            _methods[MovieMethods.Similar] = movie => movie.Similar;
             _methods[MovieMethods.Reviews] = movie => movie.Reviews;
             _methods[MovieMethods.Lists] = movie => movie.Lists;
             _methods[MovieMethods.Changes] = movie => movie.Changes;
@@ -81,8 +85,7 @@ namespace TMDbLibTests
         public void TestMoviesImdbExtrasAll()
         {
             Dictionary<MovieMethods, Func<Movie, object>> tmpMethods = new Dictionary<MovieMethods, Func<Movie, object>>(_methods);
-            tmpMethods.Remove(MovieMethods.Changes);
-            tmpMethods.Remove(MovieMethods.SimilarMovies);      // See https://github.com/LordMike/TMDbLib/issues/19
+            tmpMethods.Remove(MovieMethods.Videos);
 
             _config.Client.SetSessionInformation(_config.UserSessionId, SessionType.UserSession);
 
@@ -142,7 +145,6 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestMoviesGetMovieAlternativeTitlesCountry()
         {
-            //GetMovieAlternativeTitles(int id, string country)
             AlternativeTitles respUs = _config.Client.GetMovieAlternativeTitles(AGoodDayToDieHard, "US");
             Assert.IsNotNull(respUs);
 
@@ -157,58 +159,131 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestMoviesGetMovieCasts()
         {
-            //GetMovieCasts(int id)
             Credits resp = _config.Client.GetMovieCredits(AGoodDayToDieHard);
             Assert.IsNotNull(resp);
+
+            Cast cast = resp.Cast.SingleOrDefault(s => s.Name == "Bruce Willis");
+            Assert.IsNotNull(cast);
+
+            Assert.AreEqual(1, cast.CastId);
+            Assert.AreEqual("John McClane", cast.Character);
+            Assert.AreEqual("52fe4751c3a36847f812f049", cast.CreditId);
+            Assert.AreEqual(62, cast.Id);
+            Assert.AreEqual("Bruce Willis", cast.Name);
+            Assert.AreEqual(0, cast.Order);
+            Assert.AreEqual("/kI1OluWhLJk3pnR19VjOfABpnTY.jpg", cast.ProfilePath);
+
+            Crew crew = resp.Crew.SingleOrDefault(s => s.Name == "Marco Beltrami");
+            Assert.IsNotNull(crew);
+
+            Assert.AreEqual("5336b0e09251417d9b000cc7", crew.CreditId);
+            Assert.AreEqual("Sound", crew.Department);
+            Assert.AreEqual(7229, crew.Id);
+            Assert.AreEqual("Music", crew.Job);
+            Assert.AreEqual("Marco Beltrami", crew.Name);
+            Assert.AreEqual("/AvmWWykshwdR9sUWdbI8DaRLpRs.jpg", crew.ProfilePath);
+
         }
 
         [TestMethod]
         public void TestMoviesGetMovieImages()
         {
-            //GetMovieImages(int id, string language)
             ImagesWithId resp = _config.Client.GetMovieImages(AGoodDayToDieHard);
             Assert.IsNotNull(resp);
+
+            ImageData backdrop = resp.Backdrops.SingleOrDefault(s => s.FilePath == "/17zArExB7ztm6fjUXZwQWgGMC9f.jpg");
+            Assert.IsNotNull(backdrop);
+
+            Assert.IsTrue(Math.Abs(1.77777777777778 - backdrop.AspectRatio) < double.Epsilon);
+            Assert.AreEqual("/17zArExB7ztm6fjUXZwQWgGMC9f.jpg", backdrop.FilePath);
+            Assert.AreEqual(1080, backdrop.Height);
+            Assert.AreEqual("xx", backdrop.Iso_639_1);
+            Assert.IsTrue(backdrop.VoteAverage > 0);
+            Assert.IsTrue(backdrop.VoteCount > 0);
+            Assert.AreEqual(1920, backdrop.Width);
+
+            ImageData poster = resp.Posters.SingleOrDefault(s => s.FilePath == "/c2SQMd00CCGTiDxGXVqA2J9lmzF.jpg");
+            Assert.IsNotNull(poster);
+
+            Assert.IsTrue(Math.Abs(0.666666666666667 - poster.AspectRatio) < double.Epsilon);
+            Assert.AreEqual("/c2SQMd00CCGTiDxGXVqA2J9lmzF.jpg", poster.FilePath);
+            Assert.AreEqual(1500, poster.Height);
+            Assert.AreEqual("en", poster.Iso_639_1);
+            Assert.IsTrue(poster.VoteAverage > 0);
+            Assert.IsTrue(poster.VoteCount > 0);
+            Assert.AreEqual(1000, poster.Width);
         }
 
         [TestMethod]
         public void TestMoviesGetMovieKeywords()
         {
-            //GetMovieKeywords(int id)
             KeywordsContainer resp = _config.Client.GetMovieKeywords(AGoodDayToDieHard);
             Assert.IsNotNull(resp);
+
+            Keyword keyword = resp.Keywords.SingleOrDefault(s => s.Id == 186447);
+            Assert.IsNotNull(keyword);
+
+            Assert.AreEqual(186447, keyword.Id);
+            Assert.AreEqual("rogue", keyword.Name);
         }
 
         [TestMethod]
         public void TestMoviesGetMovieReleases()
         {
-            //GetMovieReleases(int id)
             Releases resp = _config.Client.GetMovieReleases(AGoodDayToDieHard);
             Assert.IsNotNull(resp);
+
+            Country country = resp.Countries.SingleOrDefault(s => s.Iso_3166_1 == "US");
+            Assert.IsNotNull(country);
+
+            Assert.AreEqual("R", country.Certification);
+            Assert.AreEqual("US", country.Iso_3166_1);
+            Assert.AreEqual(true, country.Primary);
+            Assert.AreEqual(new DateTime(2013, 2, 14), country.ReleaseDate);
         }
 
         [TestMethod]
-        public void TestMoviesGetMovieTrailers()
+        public void TestMoviesGetMovieVideos()
         {
-            //GetMovieTrailers(int id)
-            Trailers resp = _config.Client.GetMovieTrailers(AGoodDayToDieHard);
+            ResultContainer<Video> resp = _config.Client.GetMovieVideos(AGoodDayToDieHard);
             Assert.IsNotNull(resp);
+
+            Assert.IsNotNull(resp);
+            Assert.IsNotNull(resp.Results);
+
+            Video video = resp.Results[0];
+            Assert.IsNotNull(video);
+
+            Assert.AreEqual("533ec6a7c3a368544800556f", video.Id);
+            Assert.AreEqual("en", video.Iso_639_1);
+            Assert.AreEqual("7EgVRvG2mM0", video.Key);
+            Assert.AreEqual("A Good Day To Die Hard Official Trailer", video.Name);
+            Assert.AreEqual("YouTube", video.Site);
+            Assert.AreEqual(720, video.Size);
+            Assert.AreEqual("Trailer", video.Type);
         }
 
         [TestMethod]
         public void TestMoviesGetMovieTranslations()
         {
-            //GetMovieTranslations(int id)
             TranslationsContainer resp = _config.Client.GetMovieTranslations(AGoodDayToDieHard);
             Assert.IsNotNull(resp);
+
+            Translation translation = resp.Translations.SingleOrDefault(s => s.EnglishName == "German");
+            Assert.IsNotNull(translation);
+
+            Assert.AreEqual("German", translation.EnglishName);
+            Assert.AreEqual("de", translation.Iso_639_1);
+            Assert.AreEqual("Deutsch", translation.Name);
         }
 
         [TestMethod]
         public void TestMoviesGetMovieSimilarMovies()
         {
-            SearchContainer<MovieResult> resp = _config.Client.GetMovieSimilarMovies(AGoodDayToDieHard);
+            SearchContainer<MovieResult> resp = _config.Client.GetMovieSimilar(AGoodDayToDieHard);
             Assert.IsNotNull(resp);
 
-            SearchContainer<MovieResult> respGerman = _config.Client.GetMovieSimilarMovies(AGoodDayToDieHard, language: "de");
+            SearchContainer<MovieResult> respGerman = _config.Client.GetMovieSimilar(AGoodDayToDieHard, language: "de");
             Assert.IsNotNull(respGerman);
 
             Assert.AreEqual(resp.Results.Count, respGerman.Results.Count);
@@ -321,31 +396,100 @@ namespace TMDbLibTests
         }
 
         [TestMethod]
-        public void TestMoviesAccountStateRatingSet()
+        public void TestMoviesAccountStateFavoriteSet()
         {
             _config.Client.SetSessionInformation(_config.UserSessionId, SessionType.UserSession);
-            MovieAccountState accountState = _config.Client.GetMovieAccountState(Avatar);
+            AccountState accountState = _config.Client.GetMovieAccountState(MadMaxFuryRoad);
 
-            // For this test to pass the movie Avatar need to be rated, added to the favorite list and watchlist
-            Assert.AreEqual(Avatar, accountState.Id);
-            Assert.IsNotNull(accountState.Rating);
-            Assert.IsTrue(accountState.Favorite, "Please add Avatar to the users favourites list");
-            Assert.IsTrue(accountState.Watchlist, "Please add Avatar to the users watchlist");
+            // Remove the favourite
+            if (accountState.Favorite)
+                _config.Client.AccountChangeFavoriteStatus(MediaType.Movie, MadMaxFuryRoad, false);
+
+            // Allow TMDb to cache our changes
+            Thread.Sleep(2000);
+
+            // Test that the movie is NOT favourited
+            accountState = _config.Client.GetMovieAccountState(MadMaxFuryRoad);
+
+            Assert.AreEqual(MadMaxFuryRoad, accountState.Id);
+            Assert.IsFalse(accountState.Favorite);
+
+            // Favourite the movie
+            _config.Client.AccountChangeFavoriteStatus(MediaType.Movie, MadMaxFuryRoad, true);
+
+            // Allow TMDb to cache our changes
+            Thread.Sleep(2000);
+
+            // Test that the movie IS favourited
+            accountState = _config.Client.GetMovieAccountState(MadMaxFuryRoad);
+            Assert.AreEqual(MadMaxFuryRoad, accountState.Id);
+            Assert.IsTrue(accountState.Favorite);
         }
 
         [TestMethod]
-        public void TestMoviesAccountStateRatingNotSet()
+        public void TestMoviesAccountStateWatchlistSet()
         {
             _config.Client.SetSessionInformation(_config.UserSessionId, SessionType.UserSession);
-            MovieAccountState accountState = _config.Client.GetMovieAccountState(AGoodDayToDieHard);
+            AccountState accountState = _config.Client.GetMovieAccountState(MadMaxFuryRoad);
 
-            // For this test to pass the movie A Good Day To Die Hard need to be NOT rated, and REMOVED from the favorite list and watchlist
-            Assert.AreEqual(AGoodDayToDieHard, accountState.Id);
-            Assert.IsNull(accountState.Rating);
-            Assert.IsFalse(accountState.Favorite, "Please remove A Good Day To Die Hard from the users favourites list");
-            Assert.IsFalse(accountState.Watchlist, "Please remove A Good Day To Die Hard from the users watchlist");
+            // Remove the watchlist
+            if (accountState.Watchlist)
+                _config.Client.AccountChangeWatchlistStatus(MediaType.Movie, MadMaxFuryRoad, false);
+
+            // Allow TMDb to cache our changes
+            Thread.Sleep(2000);
+
+            // Test that the movie is NOT watchlisted
+            accountState = _config.Client.GetMovieAccountState(MadMaxFuryRoad);
+
+            Assert.AreEqual(MadMaxFuryRoad, accountState.Id);
+            Assert.IsFalse(accountState.Watchlist);
+
+            // Watchlist the movie
+            _config.Client.AccountChangeWatchlistStatus(MediaType.Movie, MadMaxFuryRoad, true);
+
+            // Allow TMDb to cache our changes
+            Thread.Sleep(2000);
+
+            // Test that the movie IS watchlisted
+            accountState = _config.Client.GetMovieAccountState(MadMaxFuryRoad);
+            Assert.AreEqual(MadMaxFuryRoad, accountState.Id);
+            Assert.IsTrue(accountState.Watchlist);
         }
 
+        [TestMethod]
+        public void TestMoviesAccountStateRatingSet()
+        {
+            _config.Client.SetSessionInformation(_config.UserSessionId, SessionType.UserSession);
+            AccountState accountState = _config.Client.GetMovieAccountState(MadMaxFuryRoad);
+
+            Assert.Inconclusive("Alter when TMDb has the option to remove ratings");
+
+            // Remove the rating
+            if (accountState.Rating.HasValue)
+                // TODO: Alter when TMDb has the option to remove ratings
+                _config.Client.MovieSetRating(MadMaxFuryRoad, 0);
+
+            // Allow TMDb to cache our changes
+            Thread.Sleep(2000);
+
+            // Test that the movie is NOT rated
+            accountState = _config.Client.GetMovieAccountState(MadMaxFuryRoad);
+
+            Assert.AreEqual(MadMaxFuryRoad, accountState.Id);
+            Assert.IsFalse(accountState.Rating.HasValue);
+
+            // Rate the movie
+            _config.Client.MovieSetRating( MadMaxFuryRoad, 5);
+
+            // Allow TMDb to cache our changes
+            Thread.Sleep(2000);
+
+            // Test that the movie IS rated
+            accountState = _config.Client.GetMovieAccountState(MadMaxFuryRoad);
+            Assert.AreEqual(MadMaxFuryRoad, accountState.Id);
+            Assert.IsTrue(accountState.Rating.HasValue);
+        }
 
         [TestMethod]
         public void TestMoviesSetRatingBadRating()
@@ -384,7 +528,7 @@ namespace TMDbLibTests
             Assert.IsTrue(_config.Client.MovieSetRating(Avatar, newRating));
 
             // Allow TMDb to not cache our data
-            Thread.Sleep(1000);
+            Thread.Sleep(2000);
 
             // Check if it worked
             Assert.AreEqual(newRating, _config.Client.GetMovieAccountState(Avatar).Rating);
@@ -393,7 +537,7 @@ namespace TMDbLibTests
             Assert.IsTrue(_config.Client.MovieSetRating(Avatar, originalRating));
 
             // Allow TMDb to not cache our data
-            Thread.Sleep(1000);
+            Thread.Sleep(2000);
 
             // Check if it worked
             Assert.AreEqual(originalRating, _config.Client.GetMovieAccountState(Avatar).Rating);
@@ -431,7 +575,7 @@ namespace TMDbLibTests
             Assert.AreEqual("http://www.diehardmovie.com/", item.Homepage);
 
             Assert.AreEqual("/17zArExB7ztm6fjUXZwQWgGMC9f.jpg", item.BackdropPath);
-            Assert.AreEqual("/xO42aJxjWiVnvWaAliq9iWjMpHZ.jpg", item.PosterPath);
+            Assert.AreEqual("/c2SQMd00CCGTiDxGXVqA2J9lmzF.jpg", item.PosterPath);
 
             Assert.AreEqual(false, item.Adult);
             Assert.AreEqual(false, item.Video);
