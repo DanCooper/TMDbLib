@@ -1,20 +1,22 @@
-﻿using RestSharp;
+﻿using System.Threading.Tasks;
 using TMDbLib.Objects.Reviews;
+using TMDbLib.Rest;
 
 namespace TMDbLib.Client
 {
     public partial class TMDbClient
     {
-        public Review GetReview(string reviewId)
+        public async Task<Review> GetReviewAsync(string reviewId)
         {
-            RestRequest request = new RestRequest("review/{reviewId}");
+            RestRequest request  = _client.Create("review/{reviewId}");
             request.AddUrlSegment("reviewId", reviewId);
 
-            request.DateFormat = "yyyy-MM-dd";
+            // TODO: Dateformat?
+            //request.DateFormat = "yyyy-MM-dd";
 
-            IRestResponse<Review> resp = _client.Get<Review>(request);
+            RestResponse<Review> resp = await request.ExecuteGet<Review>().ConfigureAwait(false);
 
-            return resp.Data;
+            return resp;
         }
     }
 }

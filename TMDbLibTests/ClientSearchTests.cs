@@ -3,7 +3,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Search;
 using System.Linq;
-using TMDbLib.Objects.TvShows;
 using TMDbLibTests.Helpers;
 
 namespace TMDbLibTests
@@ -25,11 +24,11 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestSearchMovie()
         {
-            TestHelpers.SearchPages(i => _config.Client.SearchMovie("007", i));
+            TestHelpers.SearchPages(i => _config.Client.SearchMovieAsync("007", i).Result);
 
             // Search pr. Year
             // 1962: First James Bond movie, "Dr. No"
-            SearchContainer<SearchMovie> result = _config.Client.SearchMovie("007", year: 1962);
+            SearchContainer<SearchMovie> result = _config.Client.SearchMovieAsync("007", year: 1962).Result;
 
             Assert.IsTrue(result.Results.Any());
             SearchMovie item = result.Results.SingleOrDefault(s => s.Id == 646);
@@ -37,12 +36,12 @@ namespace TMDbLibTests
             Assert.IsNotNull(item);
             Assert.AreEqual(646, item.Id);
             Assert.AreEqual(false, item.Adult);
-            Assert.AreEqual("/bplDiT5JhaXf9S5arO8g5QsFtDi.jpg", item.BackdropPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.BackdropPath), "item.BackdropPath was not a valid image path, was: " + item.BackdropPath);
             Assert.AreEqual("en", item.OriginalLanguage);
             Assert.AreEqual("Dr. No", item.OriginalTitle);
             Assert.AreEqual("When Strangways, the British SIS Station Chief in Jamaica goes missing, MI6 send James Bond - Agent 007 to investigate. His investigation leads him to the mysterious Crab Key; the secret base of Dr No who he suspects is trying to sabotage the American space program using a radio beam. With the assistance of local fisherman Quarrel, who had been helping Strangways, Bond sneaks onto Crab Key where he meets the beautiful Honey Ryder. Can the three of them defeat an army of henchmen and a \"fire breathing dragon\" in order to stop Dr No, save the space program and get revenge for Strangways? Dr. No is the first film of legendary James Bond series starring Sean Connery in the role of Fleming's British super agent.", item.Overview);
             Assert.AreEqual(false, item.Video);
-            Assert.AreEqual("/gRdfLVVf6FheOw6mw6wOsKhZG1l.jpg", item.PosterPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.PosterPath), "item.PosterPath was not a valid image path, was: " + item.PosterPath);
             Assert.AreEqual(new DateTime(1962, 10, 5), item.ReleaseDate);
             Assert.AreEqual("Dr. No", item.Title);
             Assert.IsTrue(item.Popularity > 0);
@@ -58,9 +57,9 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestSearchCollection()
         {
-            TestHelpers.SearchPages(i => _config.Client.SearchCollection("007", i));
+            TestHelpers.SearchPages(i => _config.Client.SearchCollectionAsync("007", i).Result);
 
-            SearchContainer<SearchResultCollection> result = _config.Client.SearchCollection("James Bond");
+            SearchContainer<SearchResultCollection> result = _config.Client.SearchCollectionAsync("James Bond").Result;
 
             Assert.IsTrue(result.Results.Any());
             SearchResultCollection item = result.Results.SingleOrDefault(s => s.Id == 645);
@@ -68,16 +67,16 @@ namespace TMDbLibTests
             Assert.IsNotNull(item);
             Assert.AreEqual(645, item.Id);
             Assert.AreEqual("James Bond Collection", item.Name);
-            Assert.AreEqual("/6VcVl48kNKvdXOZfJPdarlUGOsk.jpg", item.BackdropPath);
-            Assert.AreEqual("/HORpg5CSkmeQlAolx3bKMrKgfi.jpg", item.PosterPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.BackdropPath), "item.BackdropPath was not a valid image path, was: " + item.BackdropPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.PosterPath), "item.PosterPath was not a valid image path, was: " + item.PosterPath);
         }
 
         [TestMethod]
         public void TestSearchPerson()
         {
-            TestHelpers.SearchPages(i => _config.Client.SearchPerson("Willis", i));
+            TestHelpers.SearchPages(i => _config.Client.SearchPersonAsync("Willis", i).Result);
 
-            SearchContainer<SearchPerson> result = _config.Client.SearchPerson("Willis");
+            SearchContainer<SearchPerson> result = _config.Client.SearchPersonAsync("Willis").Result;
 
             Assert.IsTrue(result.Results.Any());
             SearchPerson item = result.Results.SingleOrDefault(s => s.Id == 62);
@@ -85,7 +84,7 @@ namespace TMDbLibTests
             Assert.IsNotNull(item);
             Assert.AreEqual(62, item.Id);
             Assert.AreEqual("Bruce Willis", item.Name);
-            Assert.AreEqual("/kI1OluWhLJk3pnR19VjOfABpnTY.jpg", item.ProfilePath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.ProfilePath), "item.ProfilePath was not a valid image path, was: " + item.ProfilePath);
             Assert.AreEqual(false, item.Adult);
             Assert.IsTrue(item.Popularity > 0);
 
@@ -96,9 +95,9 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestSearchList()
         {
-            TestHelpers.SearchPages(i => _config.Client.SearchList("to watch", i));
+            TestHelpers.SearchPages(i => _config.Client.SearchListAsync("to watch", i).Result);
 
-            SearchContainer<SearchList> result = _config.Client.SearchList("to watch");
+            SearchContainer<SearchList> result = _config.Client.SearchListAsync("to watch").Result;
 
             Assert.IsTrue(result.Results.Any());
             SearchList item = result.Results.SingleOrDefault(s => s.Id == "54a5c0ceaed56c28c300013a");
@@ -109,7 +108,7 @@ namespace TMDbLibTests
             Assert.AreEqual("en", item.Iso_639_1);
             Assert.AreEqual("movie", item.ListType);
             Assert.AreEqual("Movies", item.Name);
-            Assert.AreEqual("/w28byq1ITUk944o9jPcIrfDlywC.jpg", item.PosterPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.PosterPath), "item.PosterPath was not a valid image path, was: " + item.PosterPath);
             Assert.IsTrue(item.FavoriteCount > 0);
             Assert.IsTrue(item.ItemCount > 0);
         }
@@ -117,25 +116,25 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestSearchCompany()
         {
-            TestHelpers.SearchPages(i => _config.Client.SearchCompany("20th", i));
+            TestHelpers.SearchPages(i => _config.Client.SearchCompanyAsync("20th", i).Result);
 
-            SearchContainer<SearchCompany> result = _config.Client.SearchCompany("20th");
+            SearchContainer<SearchCompany> result = _config.Client.SearchCompanyAsync("20th").Result;
 
             Assert.IsTrue(result.Results.Any());
             SearchCompany item = result.Results.SingleOrDefault(s => s.Id == 25);
 
             Assert.IsNotNull(item);
             Assert.AreEqual(25, item.Id);
-            Assert.AreEqual("/nM2MfoMqzJQRiSynsDabOtFKetD.png", item.LogoPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.LogoPath), "item.LogoPath was not a valid image path, was: " + item.LogoPath);
             Assert.AreEqual("20th Century Fox", item.Name);
         }
 
         [TestMethod]
         public void TestSearchKeyword()
         {
-            TestHelpers.SearchPages(i => _config.Client.SearchKeyword("plot", i));
+            TestHelpers.SearchPages(i => _config.Client.SearchKeywordAsync("plot", i).Result);
 
-            SearchContainer<SearchKeyword> result = _config.Client.SearchKeyword("plot");
+            SearchContainer<SearchKeyword> result = _config.Client.SearchKeywordAsync("plot").Result;
 
             Assert.IsTrue(result.Results.Any());
             SearchKeyword item = result.Results.SingleOrDefault(s => s.Id == 11121);
@@ -148,23 +147,30 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestSearchTvShow()
         {
-            TestHelpers.SearchPages(i => _config.Client.SearchTvShow("Breaking Bad", i));
+            TestHelpers.SearchPages(i => _config.Client.SearchTvShowAsync("Breaking Bad", i).Result);
 
-            SearchContainer<SearchTv> result = _config.Client.SearchTvShow("Breaking Bad");
+            SearchContainer<SearchTv> result = _config.Client.SearchTvShowAsync("Breaking Bad").Result;
 
             Assert.IsTrue(result.Results.Any());
             SearchTv item = result.Results.SingleOrDefault(s => s.Id == 1396);
 
             Assert.IsNotNull(item);
             Assert.AreEqual(1396, item.Id);
-            Assert.AreEqual("/eSzpy96DwBujGFj0xMbXBcGcfxX.jpg", item.BackdropPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.BackdropPath), "item.BackdropPath was not a valid image path, was: " + item.BackdropPath);
             Assert.AreEqual(new DateTime(2008, 1, 19), item.FirstAirDate);
             Assert.AreEqual("Breaking Bad", item.Name);
             Assert.AreEqual("Breaking Bad", item.OriginalName);
-            Assert.AreEqual("/4yMXf3DW6oCL0lVPZaZM2GypgwE.jpg", item.PosterPath);
+            Assert.AreEqual("en", item.OriginalLanguage);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.PosterPath), "item.PosterPath was not a valid image path, was: " + item.PosterPath);
+            Assert.AreEqual("Breaking Bad is an American crime drama television series created and produced by Vince Gilligan. Set and produced in Albuquerque, New Mexico, Breaking Bad is the story of Walter White, a struggling high school chemistry teacher who is diagnosed with inoperable lung cancer at the beginning of the series. He turns to a life of crime, producing and selling methamphetamine, in order to secure his family's financial future before he dies, teaming with his former student, Jesse Pinkman. Heavily serialized, the series is known for positioning its characters in seemingly inextricable corners and has been labeled a contemporary western by its creator.", item.Overview);
             Assert.IsTrue(item.Popularity > 0);
             Assert.IsTrue(item.VoteAverage > 0);
             Assert.IsTrue(item.VoteCount > 0);
+
+            Assert.IsNotNull(item.GenreIds);
+            Assert.AreEqual(1, item.GenreIds.Count);
+            Assert.AreEqual(18, item.GenreIds[0]);
+
             Assert.IsNotNull(item.OriginCountry);
             Assert.AreEqual(1, item.OriginCountry.Count);
             Assert.AreEqual("US", item.OriginCountry[0]);
@@ -173,21 +179,21 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestSearchMulti()
         {
-            TestHelpers.SearchPages(i => _config.Client.SearchMulti("Arrow", i));
+            TestHelpers.SearchPages(i => _config.Client.SearchMultiAsync("Arrow", i).Result);
 
-            SearchContainer<SearchMulti> result = _config.Client.SearchMulti("Arrow");
+            SearchContainer<SearchMulti> result = _config.Client.SearchMultiAsync("Arrow").Result;
 
             Assert.IsTrue(result.Results.Any());
             SearchMulti item = result.Results.SingleOrDefault(s => s.Id == 1412);
 
             Assert.IsNotNull(item);
             Assert.AreEqual(1412, item.Id);
-            Assert.AreEqual("/dXTyVDTIgeByvUOUEiHjbi8xX9A.jpg", item.BackdropPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.BackdropPath), "item.BackdropPath was not a valid image path, was: " + item.BackdropPath);
             Assert.AreEqual(new DateTime(2012, 10, 10), item.FirstAirDate);
             Assert.AreEqual(MediaType.TVShow, item.Type);
             Assert.AreEqual("Arrow", item.Name);
             Assert.AreEqual("Arrow", item.OriginalName);
-            Assert.AreEqual("/mo0FP1GxOFZT4UDde7RFDz5APXF.jpg", item.PosterPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.PosterPath), "item.PosterPath was not a valid image path, was: " + item.PosterPath);
             Assert.IsTrue(item.Popularity > 0);
             Assert.IsTrue(item.VoteAverage > 0);
             Assert.IsTrue(item.VoteCount > 0);

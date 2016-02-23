@@ -1,26 +1,26 @@
-﻿using RestSharp;
+﻿using System.Threading.Tasks;
 using TMDbLib.Objects.Certifications;
+using TMDbLib.Rest;
 
 namespace TMDbLib.Client
 {
     public partial class TMDbClient
     {
-        public CertificationsContainer GetMovieCertifications()
+        public async Task<CertificationsContainer> GetMovieCertificationsAsync()
         {
-            RestRequest req = new RestRequest("certification/movie/list");
+            RestRequest req =  _client.Create("certification/movie/list");
 
-            IRestResponse<CertificationsContainer> resp = _client.Get<CertificationsContainer>(req);
+            RestResponse<CertificationsContainer> resp = await req.ExecuteGet<CertificationsContainer>().ConfigureAwait(false);
 
-            return resp.Data;
-        }
+            return resp;}
 
-        public CertificationsContainer GetTvCertifications()
+        public async Task<CertificationsContainer> GetTvCertificationsAsync()
         {
-            RestRequest req = new RestRequest("certification/tv/list");
+            RestRequest req =  _client.Create("certification/tv/list");
 
-            IRestResponse<CertificationsContainer> resp = _client.Get<CertificationsContainer>(req);
+            RestResponse<CertificationsContainer> resp = await req.ExecuteGet<CertificationsContainer>().ConfigureAwait(false);
 
-            return resp.Data;
+            return resp;
         }
     }
 }

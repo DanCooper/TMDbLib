@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TMDbLib.Client;
 using TMDbLib.Objects.Exceptions;
 using TMDbLib.Objects.General;
+using TMDbLibTests.Helpers;
 
 namespace TMDbLibTests
 {
@@ -86,16 +88,44 @@ namespace TMDbLibTests
         }
 
         [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void ClientSetBadMaxRetryValue()
+        { 
+            TMDbClient client = new TMDbClient(TestConfig.APIKey);
+
+            client.MaxRetryCount = -1;
+            
+            Assert.Fail();
+        }
+
+        [TestMethod]
         [ExpectedException(typeof(RequestLimitExceededException))]
         public void ClientRateLimitTest()
         {
-            const int tomorrowLand = 158852;
-            TMDbClient client = new TMDbClient(TestConfig.APIKey);
-            client.ThrowErrorOnExeedingMaxCalls = true;
+            const int id = IdHelper.AGoodDayToDieHard;
 
-            for (int i = 0; i < 100; i++)
+            TMDbClient client = new TMDbClient(TestConfig.APIKey);
+            client.MaxRetryCount = 0;
+
+            try
             {
-                client.GetMovie(tomorrowLand);
+                Parallel.For(0, 100, i =>
+                {
+                    try
+                    {
+                        client.GetMovieAsync(id).Wait();
+                    }
+                    catch (AggregateException ex)
+                    {
+                        // Unpack the InnerException
+                        throw ex.InnerException;
+                    }
+                });
+            }
+            catch (AggregateException ex)
+            {
+                // Unpack the InnerException
+                throw ex.InnerException;
             }
 
             Assert.Fail();

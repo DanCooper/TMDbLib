@@ -2,15 +2,13 @@ using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TMDbLib.Objects.Credit;
+using TMDbLibTests.Helpers;
 
 namespace TMDbLibTests
 {
     [TestClass]
     public class ClientCreditTests
     {
-        const string BruceWillisMiamiVice = "525719bb760ee3776a1835d3";
-        const string HughLaurieHouse = "5256ccf519c2956ff607ca00";
-
         private TestConfig _config;
 
         /// <summary>
@@ -25,14 +23,14 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestGetCreditBase()
         {
-            Credit result = _config.Client.GetCredits(BruceWillisMiamiVice);
+            Credit result = _config.Client.GetCreditsAsync(IdHelper.BruceWillisMiamiVice).Result;
 
             Assert.IsNotNull(result);
             Assert.AreEqual("cast", result.CreditType);
             Assert.AreEqual("Actors", result.Department);
             Assert.AreEqual("Actor", result.Job);
             Assert.AreEqual("tv", result.MediaType);
-            Assert.AreEqual(BruceWillisMiamiVice, result.Id);
+            Assert.AreEqual(IdHelper.BruceWillisMiamiVice, result.Id);
 
             Assert.IsNotNull(result.Person);
             Assert.AreEqual("Bruce Willis", result.Person.Name);
@@ -48,7 +46,7 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestGetCreditEpisode()
         {
-            Credit result = _config.Client.GetCredits(BruceWillisMiamiVice);
+            Credit result = _config.Client.GetCreditsAsync(IdHelper.BruceWillisMiamiVice).Result;
 
             Assert.IsNotNull(result);
             Assert.IsNotNull(result.Media);
@@ -62,13 +60,13 @@ namespace TMDbLibTests
             Assert.AreEqual("No Exit", item.Name);
             Assert.AreEqual("Crockett attempts to help an old flame free herself from a racketeer, then is framed for taking bribes. Martin Castillo becomes the squad's new Lieutenant.", item.Overview);
             Assert.AreEqual(1, item.SeasonNumber);
-            Assert.AreEqual("/zJZDnnNGO0ciOQ9SUdEGLLCE4r0.jpg", item.StillPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.StillPath), "item.StillPath was not a valid image path, was: " + item.StillPath);
         }
 
         [TestMethod]
         public void TestGetCreditSeasons()
         {
-            Credit result = _config.Client.GetCredits(HughLaurieHouse);
+            Credit result = _config.Client.GetCreditsAsync(IdHelper.HughLaurieHouse).Result;
 
             Assert.IsNotNull(result);
             Assert.IsNotNull(result.Media);
@@ -78,7 +76,7 @@ namespace TMDbLibTests
             Assert.IsNotNull(item);
 
             Assert.AreEqual(new DateTime(2004, 11, 16), item.AirDate);
-            Assert.AreEqual("/wEFbvNMRjG8swYuLsWXbqu8Qbec.jpg", item.PosterPath);
+            Assert.IsTrue(TestImagesHelpers.TestImagePath(item.PosterPath), "item.PosterPath was not a valid image path, was: " + item.PosterPath);
             Assert.AreEqual(1, item.SeasonNumber);
         }
     }

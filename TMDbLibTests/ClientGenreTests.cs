@@ -18,39 +18,18 @@ namespace TMDbLibTests
         {
             _config = new TestConfig();
         }
-
-        [TestMethod]
-        public void TestGenreList()
-        {
-            // Default language
-            List<Genre> genres = _config.Client.GetGenres();
-
-            Assert.IsNotNull(genres);
-            Assert.IsTrue(genres.Count > 0);
-
-            // Another language
-            List<Genre> genresDanish = _config.Client.GetGenres("da");
-
-            Assert.IsNotNull(genresDanish);
-            Assert.IsTrue(genresDanish.Count > 0);
-
-            Assert.AreEqual(genres.Count, genresDanish.Count);
-
-            // At least one should be different
-            Assert.IsTrue(genres.Any(genre => genresDanish.First(danishGenre => danishGenre.Id == genre.Id).Name != genre.Name));
-        }
-
+        
         [TestMethod]
         public void TestGenreTvList()
         {
             // Default language
-            List<Genre> genres = _config.Client.GetTvGenres();
+            List<Genre> genres = _config.Client.GetTvGenresAsync().Result;
 
             Assert.IsNotNull(genres);
             Assert.IsTrue(genres.Count > 0);
 
             // Another language
-            List<Genre> genresDanish = _config.Client.GetTvGenres("da");
+            List<Genre> genresDanish = _config.Client.GetTvGenresAsync("da").Result;
 
             Assert.IsNotNull(genresDanish);
             Assert.IsTrue(genresDanish.Count > 0);
@@ -65,13 +44,13 @@ namespace TMDbLibTests
         public void TestGenreMovieList()
         {
             // Default language
-            List<Genre> genres = _config.Client.GetMovieGenres();
+            List<Genre> genres = _config.Client.GetMovieGenresAsync().Result;
 
             Assert.IsNotNull(genres);
             Assert.IsTrue(genres.Count > 0);
 
             // Another language
-            List<Genre> genresDanish = _config.Client.GetMovieGenres("da");
+            List<Genre> genresDanish = _config.Client.GetMovieGenresAsync("da").Result;
 
             Assert.IsNotNull(genresDanish);
             Assert.IsTrue(genresDanish.Count > 0);
@@ -86,12 +65,12 @@ namespace TMDbLibTests
         public void TestGenreMovies()
         {
             // Get first genre
-            Genre genre = _config.Client.GetGenres().First();
+            Genre genre = _config.Client.GetMovieGenresAsync().Result.First();
 
             // Get movies
-            SearchContainerWithId<MovieResult> movies = _config.Client.GetGenreMovies(genre.Id);
-            SearchContainerWithId<MovieResult> moviesPage2 = _config.Client.GetGenreMovies(genre.Id, "it", 2, includeAllMovies: false);
-            SearchContainerWithId<MovieResult> moviesAll = _config.Client.GetGenreMovies(genre.Id, includeAllMovies: true);
+            SearchContainerWithId<MovieResult> movies = _config.Client.GetGenreMoviesAsync(genre.Id).Result;
+            SearchContainerWithId<MovieResult> moviesPage2 = _config.Client.GetGenreMoviesAsync(genre.Id, "it", 2, includeAllMovies: false).Result;
+            SearchContainerWithId<MovieResult> moviesAll = _config.Client.GetGenreMoviesAsync(genre.Id, includeAllMovies: true).Result;
 
             Assert.AreEqual(1, movies.Page);
             Assert.AreEqual(2, moviesPage2.Page);

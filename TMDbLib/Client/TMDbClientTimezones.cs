@@ -1,14 +1,15 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using RestSharp;
+using System.Threading.Tasks;
 using TMDbLib.Objects.Timezones;
+using TMDbLib.Rest;
 
 namespace TMDbLib.Client
 {
     public partial class TMDbClient
     {
         /// <summary>
-        /// Find movies, people and tv shows by an external id.
+        /// FindAsync movies, people and tv shows by an external id.
         /// The following trypes can be found based on the specified external id's
         /// - Movies: Imdb
         /// - People: Imdb, FreeBaseMid, FreeBaseId, TvRage
@@ -17,19 +18,21 @@ namespace TMDbLib.Client
         /// <param name="source">The source the specified id belongs to</param>
         /// <param name="id">The id of the object you wish to located</param>
         /// <returns>A list of all objects in TMDb that matched your id</returns>
-        public Timezones GetTimezones()
+        public async Task<Timezones> GetTimezonesAsync()
         {
-            RestRequest req = new RestRequest("timezones/list");
+            RestRequest req = _client.Create("timezones/list");
 
-            IRestResponse<List<Dictionary<string, List<string>>>> resp = _client.Get<List<Dictionary<string, List<string>>>>(req);
+            RestResponse<List<Dictionary<string, List<string>>>> resp = await req.ExecuteGet<List<Dictionary<string, List<string>>>>().ConfigureAwait(false);
 
-            if (resp.Data == null)
+            List<Dictionary<string, List<string>>> item = await resp.GetDataObject().ConfigureAwait(false);
+
+            if (item == null)
                 return null;
 
             Timezones result = new Timezones();
             result.List = new Dictionary<string, List<string>>();
 
-            foreach (Dictionary<string, List<string>> dictionary in resp.Data)
+            foreach (Dictionary<string, List<string>> dictionary in item)
             {
                 KeyValuePair<string, List<string>> item1 = dictionary.First();
 

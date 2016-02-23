@@ -1,20 +1,31 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Threading.Tasks;
+using TMDbLib.Client;
+using TMDbLib.Objects.General;
+using TMDbLib.Utilities;
 
 namespace TMDbLib.Objects.Discover
 {
-    public abstract class DiscoverBase
+    public abstract class DiscoverBase<T>
     {
-        protected Dictionary<string, string> Parameters;
+        private readonly string _endpoint;
+        private readonly TMDbClient _client;
+        protected readonly SimpleNamedValueCollection Parameters;
 
-        public DiscoverBase()
+        public DiscoverBase(string endpoint, TMDbClient client)
         {
-            Parameters = new Dictionary<string, string>();
+            _endpoint = endpoint;
+            _client = client;
+            Parameters = new SimpleNamedValueCollection();
         }
 
-        internal List<KeyValuePair<string, string>> GetAllParameters()
+        public async Task<SearchContainer<T>> Query(int page = 0)
         {
-            return Parameters.ToList();
+            return await Query(_client.DefaultLanguage, page).ConfigureAwait(false);
+        }
+
+        public async Task<SearchContainer<T>> Query(string language, int page = 0)
+        {
+            return await _client.DiscoverPerformAsync<T>(_endpoint, language, page, Parameters).ConfigureAwait(false);
         }
     }
 }

@@ -1,91 +1,91 @@
-﻿using System;
-using RestSharp;
+﻿using System.Threading.Tasks;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Search;
-using TMDbLib.Objects.TvShows;
+using TMDbLib.Rest;
 
 namespace TMDbLib.Client
 {
     public partial class TMDbClient
     {
-        private T SearchMethod<T>(string method, string query, int page, string language = null, bool? includeAdult = null, int year = 0, string dateFormat = null) where T : new()
+        private async Task<T> SearchMethod<T>(string method, string query, int page, string language = null, bool? includeAdult = null, int year = 0, string dateFormat = null) where T : new()
         {
-            RestRequest req = new RestRequest("search/{method}");
+            RestRequest req = _client.Create("search/{method}");
             req.AddUrlSegment("method", method);
             req.AddParameter("query", query);
 
             language = language ?? DefaultLanguage;
-            if (!String.IsNullOrWhiteSpace(language))
+            if (!string.IsNullOrWhiteSpace(language))
                 req.AddParameter("language", language);
 
             if (page >= 1)
-                req.AddParameter("page", page);
+                req.AddParameter("page", page.ToString());
             if (year >= 1)
-                req.AddParameter("year", year);
+                req.AddParameter("year", year.ToString());
             if (includeAdult.HasValue)
                 req.AddParameter("include_adult", includeAdult.Value ? "true" : "false");
 
-            if (dateFormat != null)
-                req.DateFormat = dateFormat;
+            // TODO: Dateformat?
+            //if (dateFormat != null)
+            //    req.DateFormat = dateFormat;
 
-            IRestResponse<T> resp = _client.Get<T>(req);
+            RestResponse<T> resp = await req.ExecuteGet<T>().ConfigureAwait(false);
 
-            return resp.Data;
+            return resp;
         }
 
-        public SearchContainer<SearchMovie> SearchMovie(string query, int page = 0, bool includeAdult = false, int year = 0)
+        public async Task<SearchContainer<SearchMovie>> SearchMovieAsync(string query, int page = 0, bool includeAdult = false, int year = 0)
         {
-            return SearchMovie(query, DefaultLanguage, page, includeAdult, year);
+            return await SearchMovieAsync(query, DefaultLanguage, page, includeAdult, year).ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchMovie> SearchMovie(string query, string language, int page = 0, bool includeAdult = false, int year = 0)
+        public async Task<SearchContainer<SearchMovie>> SearchMovieAsync(string query, string language, int page = 0, bool includeAdult = false, int year = 0)
         {
-            return SearchMethod<SearchContainer<SearchMovie>>("movie", query, page, language, includeAdult, year, "yyyy-MM-dd");
+            return await SearchMethod<SearchContainer<SearchMovie>>("movie", query, page, language, includeAdult, year, "yyyy-MM-dd").ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchMulti> SearchMulti(string query, int page = 0, bool includeAdult = false, int year = 0)
+        public async Task<SearchContainer<SearchMulti>> SearchMultiAsync(string query, int page = 0, bool includeAdult = false, int year = 0)
         {
-            return SearchMulti(query, DefaultLanguage, page, includeAdult, year);
+            return await SearchMultiAsync(query, DefaultLanguage, page, includeAdult, year).ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchMulti> SearchMulti(string query, string language, int page = 0, bool includeAdult = false, int year = 0)
+        public async Task<SearchContainer<SearchMulti>> SearchMultiAsync(string query, string language, int page = 0, bool includeAdult = false, int year = 0)
         {
-            return SearchMethod<SearchContainer<SearchMulti>>("multi", query, page, language, includeAdult, year, "yyyy-MM-dd");
+            return await SearchMethod<SearchContainer<SearchMulti>>("multi", query, page, language, includeAdult, year, "yyyy-MM-dd").ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchResultCollection> SearchCollection(string query, int page = 0)
+        public async Task<SearchContainer<SearchResultCollection>> SearchCollectionAsync(string query, int page = 0)
         {
-            return SearchCollection(query, DefaultLanguage, page);
+            return await SearchCollectionAsync(query, DefaultLanguage, page).ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchResultCollection> SearchCollection(string query, string language, int page = 0)
+        public async Task<SearchContainer<SearchResultCollection>> SearchCollectionAsync(string query, string language, int page = 0)
         {
-            return SearchMethod<SearchContainer<SearchResultCollection>>("collection", query, page, language);
+            return await SearchMethod<SearchContainer<SearchResultCollection>>("collection", query, page, language).ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchPerson> SearchPerson(string query, int page = 0, bool includeAdult = false)
+        public async Task<SearchContainer<SearchPerson>> SearchPersonAsync(string query, int page = 0, bool includeAdult = false)
         {
-            return SearchMethod<SearchContainer<SearchPerson>>("person", query, page, includeAdult: includeAdult);
+            return await SearchMethod<SearchContainer<SearchPerson>>("person", query, page, includeAdult: includeAdult).ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchList> SearchList(string query, int page = 0, bool includeAdult = false)
+        public async Task<SearchContainer<SearchList>> SearchListAsync(string query, int page = 0, bool includeAdult = false)
         {
-            return SearchMethod<SearchContainer<SearchList>>("list", query, page, includeAdult: includeAdult);
+            return await SearchMethod<SearchContainer<SearchList>>("list", query, page, includeAdult: includeAdult).ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchCompany> SearchCompany(string query, int page = 0)
+        public async Task<SearchContainer<SearchCompany>> SearchCompanyAsync(string query, int page = 0)
         {
-            return SearchMethod<SearchContainer<SearchCompany>>("company", query, page);
+            return await SearchMethod<SearchContainer<SearchCompany>>("company", query, page).ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchKeyword> SearchKeyword(string query, int page = 0)
+        public async Task<SearchContainer<SearchKeyword>> SearchKeywordAsync(string query, int page = 0)
         {
-            return SearchMethod<SearchContainer<SearchKeyword>>("keyword", query, page);
+            return await SearchMethod<SearchContainer<SearchKeyword>>("keyword", query, page).ConfigureAwait(false);
         }
 
-        public SearchContainer<SearchTv> SearchTvShow(string query, int page = 0)
+        public async Task<SearchContainer<SearchTv>> SearchTvShowAsync(string query, int page = 0)
         {
-            return SearchMethod<SearchContainer<SearchTv>>("tv", query, page);
+            return await SearchMethod<SearchContainer<SearchTv>>("tv", query, page).ConfigureAwait(false);
         }
     }
 }

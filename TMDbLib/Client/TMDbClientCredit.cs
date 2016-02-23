@@ -1,27 +1,28 @@
-﻿using RestSharp;
+﻿using System.Threading.Tasks;
 using TMDbLib.Objects.Credit;
+using TMDbLib.Rest;
 
 namespace TMDbLib.Client
 {
     public partial class TMDbClient
     {
-        public Credit GetCredits(string id)
+        public async Task<Credit> GetCreditsAsync(string id)
         {
-            return GetCredits(id, DefaultLanguage);
+            return await GetCreditsAsync(id, DefaultLanguage).ConfigureAwait(false);
         }
 
-        public Credit GetCredits(string id, string language)
+        public async Task<Credit> GetCreditsAsync(string id, string language)
         {
-            RestRequest req = new RestRequest("credit/{id}");
+            RestRequest req = _client.Create("credit/{id}");
 
             if (!string.IsNullOrEmpty(language))
                 req.AddParameter("language", language);
 
             req.AddUrlSegment("id", id);
 
-            IRestResponse<Credit> resp = _client.Get<Credit>(req);
+            RestResponse<Credit> resp = await req.ExecuteGet<Credit>().ConfigureAwait(false);
 
-            return resp.Data;
+            return resp;
         }
     }
 }

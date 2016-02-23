@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
-using RestSharp;
+using System.Threading.Tasks;
 using TMDbLib.Objects.TvShows;
+using TMDbLib.Rest;
 
 namespace TMDbLib.Client
 {
@@ -10,14 +11,14 @@ namespace TMDbLib.Client
         /// Retrieves a network by it's TMDb id. A network is a distributer of media content ex. HBO, AMC
         /// </summary>
         /// <param name="networkId">The id of the network object to retrieve</param>
-        public Network GetNetwork(int networkId)
+        public async Task<Network> GetNetworkAsync(int networkId)
         {
-            RestRequest request = new RestRequest("network/{networkId}");
-            request.AddUrlSegment("networkId", networkId.ToString(CultureInfo.InvariantCulture));
+            RestRequest req = _client.Create("network/{networkId}");
+            req.AddUrlSegment("networkId", networkId.ToString(CultureInfo.InvariantCulture));
 
-            IRestResponse<Network> response = _client.Get<Network>(request);
+            RestResponse<Network> response = await req.ExecuteGet<Network>().ConfigureAwait(false);
 
-            return response.Data;
+            return response;
         }
     }
 }

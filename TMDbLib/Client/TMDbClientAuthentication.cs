@@ -1,75 +1,86 @@
 ﻿using System;
-using System.Linq;
+using System.Threading.Tasks;
 using System.Net;
-using RestSharp;
 using TMDbLib.Objects.Authentication;
+using TMDbLib.Rest;
 
 namespace TMDbLib.Client
 {
     public partial class TMDbClient
     {
-        public Token AuthenticationRequestAutenticationToken()
+        public async Task<Token> AuthenticationRequestAutenticationTokenAsync()
         {
-            RestRequest request = new RestRequest("authentication/token/new")
-            {
-                DateFormat = "yyyy-MM-dd HH:mm:ss UTC"
-            };
+            RestRequest request = _client.Create("authentication/token/new");
+            //{
+            //    DateFormat = "yyyy-MM-dd HH:mm:ss UTC";
+            //};
 
-            IRestResponse<Token> response = _client.Get<Token>(request);
-            Token token = response.Data;
+            RestResponse<Token> response = await request.ExecuteGet<Token>().ConfigureAwait(false);
+            Token token = response;
 
-            token.AuthenticationCallback = response.Headers.First(h => h.Name.Equals("Authentication-Callback")).Value.ToString();
+            token.AuthenticationCallback = response.GetHeader("Authentication-Callback");
 
             return token;
         }
 
-        public void AuthenticationValidateUserToken(string initialRequestToken, string username, string password)
+        public async Task AuthenticationValidateUserTokenAsync(string initialRequestToken, string username, string password)
         {
-	        RestRequest request = new RestRequest("authentication/token/validate_with_login");
-	        request.AddParameter("request_token", initialRequestToken);
-	        request.AddParameter("username", username);
-	        request.AddParameter("password", password);
+            RestRequest request = _client.Create("authentication/token/validate_with_login");
+            request.AddParameter("request_token", initialRequestToken);
+            request.AddParameter("username", username);
+            request.AddParameter("password", password);
 
-	        IRestResponse response = _client.Get(request);
+            RestResponse response;
+            try
+            {
+                response = await request.ExecuteGet().ConfigureAwait(false);
+            }
+            catch (AggregateException ex)
+            {
+                throw ex.InnerException;
+            }
 
-	        if (response.StatusCode == HttpStatusCode.Unauthorized)
-	        {
-		        throw new UnauthorizedAccessException("Call to TMDb returned unauthorized. Most likely the provided user credentials are invalid.");
-	        }
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                throw new UnauthorizedAccessException("Call to TMDb returned unauthorized. Most likely the provided user credentials are invalid.");
+            }
         }
 
-        public UserSession AuthenticationGetUserSession(string initialRequestToken)
+        public async Task<UserSession> AuthenticationGetUserSessionAsync(string initialRequestToken)
         {
-            RestRequest request = new RestRequest("authentication/session/new");
+            RestRequest request = _client.Create("authentication/session/new");
             request.AddParameter("request_token", initialRequestToken);
 
-            IRestResponse<UserSession> response = _client.Get<UserSession>(request);
+            RestResponse<UserSession> response = await request.ExecuteGet<UserSession>().ConfigureAwait(false);
 
-            return response.Data;
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+                throw new UnauthorizedAccessException();
+
+            return response;
         }
 
         /// <summary>
-        /// Conveniance method combining 'AuthenticationRequestAutenticationToken', 'AuthenticationValidateUserToken' and 'AuthenticationGetUserSession'
+        /// Conveniance method combining 'AuthenticationRequestAutenticationTokenAsync', 'AuthenticationValidateUserTokenAsync' and 'AuthenticationGetUserSessionAsync'
         /// </summary>
         /// <param name="username">A valid TMDb username</param>
         /// <param name="password">The passoword for the provided login</param>
-        public UserSession AuthenticationGetUserSession(string username, string password)
+        public async Task<UserSession> AuthenticationGetUserSessionAsync(string username, string password)
         {
-	        Token token = AuthenticationRequestAutenticationToken();
-	        AuthenticationValidateUserToken(token.RequestToken, username, password);
-	        return AuthenticationGetUserSession(token.RequestToken);
+            Token token = await AuthenticationRequestAutenticationTokenAsync().ConfigureAwait(false);
+            await AuthenticationValidateUserTokenAsync(token.RequestToken, username, password).ConfigureAwait(false);
+            return await AuthenticationGetUserSessionAsync(token.RequestToken).ConfigureAwait(false);
         }
 
-        public GuestSession AuthenticationCreateGuestSession()
+        public async Task<GuestSession> AuthenticationCreateGuestSessionAsync()
         {
-            RestRequest request = new RestRequest("authentication/guest_session/new")
-            {
-                DateFormat = "yyyy-MM-dd HH:mm:ss UTC"
-            };
+            RestRequest request = _client.Create("authentication/guest_session/new");
+            //{
+            //    DateFormat = "yyyy-MM-dd HH:mm:ss UTC"
+            //};
 
-            IRestResponse<GuestSession> response = _client.Get<GuestSession>(request);
+            RestResponse<GuestSession> response = await request.ExecuteGet<GuestSession>().ConfigureAwait(false);
 
-            return response.Data;
+            return response;
         }
     }
 }

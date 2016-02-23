@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Globalization;
 using System.Linq;
-using System.Timers;
-using RestSharp;
+using System.Threading.Tasks;
 using TMDbLib.Objects.Authentication;
+using TMDbLib.Objects.Changes;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Search;
 using TMDbLib.Objects.TvShows;
+using TMDbLib.Rest;
 using TMDbLib.Utilities;
 using Credits = TMDbLib.Objects.TvShows.Credits;
 
@@ -22,13 +23,19 @@ namespace TMDbLib.Client
         /// <param name="extraMethods">Enum flags indicating any additional data that should be fetched in the same request.</param>
         /// <param name="language">If specified the api will attempt to return a localized result. ex: en,it,es </param>
         /// <returns>The requested Tv Show</returns>
-        public TvShow GetTvShow(int id, TvShowMethods extraMethods = TvShowMethods.Undefined, string language = null)
+        public async Task<TvShow> GetTvShowAsync(int id, TvShowMethods extraMethods = TvShowMethods.Undefined, string language = null)
         {
-            RestRequest req = new RestRequest("tv/{id}");
+            if (extraMethods.HasFlag(TvShowMethods.AccountStates))
+                RequireSessionId(SessionType.UserSession);
+
+            RestRequest req = _client.Create("tv/{id}");
             req.AddUrlSegment("id", id.ToString(CultureInfo.InvariantCulture));
 
+            if (extraMethods.HasFlag(TvShowMethods.AccountStates))
+                AddSessionId(req, SessionType.UserSession);
+
             language = language ?? DefaultLanguage;
-            if (!String.IsNullOrWhiteSpace(language))
+            if (!string.IsNullOrWhiteSpace(language))
                 req.AddParameter("language", language);
 
             string appends = string.Join(",",
@@ -41,17 +48,26 @@ namespace TMDbLib.Client
             if (appends != string.Empty)
                 req.AddParameter("append_to_response", appends);
 
-            IRestResponse<TvShow> response = _client.Get<TvShow>(req);
+            RestResponse<TvShow> response = await req.ExecuteGet<TvShow>().ConfigureAwait(false);
+
+            TvShow item = await response.GetDataObject().ConfigureAwait(false);
 
             // No data to patch up so return
-            if (response.Data == null)
+            if (item == null)
                 return null;
 
             // Patch up data, so that the end user won't notice that we share objects between request-types.
-            if (response.Data.Translations != null)
-                response.Data.Translations.Id = id;
+            if (item.Translations != null)
+                item.Translations.Id = id;
 
-            return response.Data;
+            if (item.AccountStates != null)
+            {
+                item.AccountStates.Id = item.Id;
+                // Do some custom deserialization, since TMDb uses a property that changes type we can't use automatic deserialization
+                CustomDeserialization.DeserializeAccountStatesRating(item.AccountStates, await response.GetContent().ConfigureAwait(false));
+            }
+
+            return item;
         }
 
         /// <summary>
@@ -59,17 +75,17 @@ namespace TMDbLib.Client
         /// </summary>
         /// <returns>
         /// Returns the basic information about a tv show.
-        /// For additional data use the main GetTvShow method using the tv show id as parameter.
+        /// For additional data use the main GetTvShowAsync method using the tv show id as parameter.
         /// </returns>
-        public SearchContainer<SearchTv> GetTvShowPopular(int page = -1, string language = null)
+        public async Task<SearchContainer<SearchTv>> GetTvShowPopularAsync(int page = -1, string language = null)
         {
-            return GetTvShowList(page, language, "popular");
+            return await GetTvShowListAsync(page, language, "popular").ConfigureAwait(false);
         }
 
-        [Obsolete("Use GetTvShowPopular")]
-        public SearchContainer<SearchTv> GetTvShowsPopular(int page = -1, string language = null)
+        [Obsolete("Use GetTvShowPopularAsync")]
+        public async Task<SearchContainer<SearchTv>> GetTvShowsPopularAsync(int page = -1, string language = null)
         {
-            return GetTvShowPopular(page, language);
+            return await GetTvShowPopularAsync(page, language).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -77,114 +93,33 @@ namespace TMDbLib.Client
         /// </summary>
         /// <returns>
         /// Returns the basic information about a tv show.
-        /// For additional data use the main GetTvShow method using the tv show id as parameter
+        /// For additional data use the main GetTvShowAsync method using the tv show id as parameter
         /// </returns>
-        public SearchContainer<SearchTv> GetTvShowTopRated(int page = -1, string language = null)
+        public async Task<SearchContainer<SearchTv>> GetTvShowTopRatedAsync(int page = -1, string language = null)
         {
-            return GetTvShowList(page, language, "top_rated");
+            return await GetTvShowListAsync(page, language, "top_rated").ConfigureAwait(false);
         }
 
-        [Obsolete("Use GetTvShowTopRated")]
-        public SearchContainer<SearchTv> GetTvShowsTopRated(int page = -1, string language = null)
+        [Obsolete("Use GetTvShowTopRatedAsync")]
+        public async Task<SearchContainer<SearchTv>> GetTvShowsTopRatedAsync(int page = -1, string language = null)
         {
-            return GetTvShowTopRated(page, language);
+            return await GetTvShowTopRatedAsync(page, language).ConfigureAwait(false);
         }
 
-        private SearchContainer<SearchTv> GetTvShowList(int page, string language, string tvShowListType)
+        private async Task<SearchContainer<SearchTv>> GetTvShowListAsync(int page, string language, string tvShowListType)
         {
-            RestRequest req = new RestRequest("tv/" + tvShowListType);
+            RestRequest req = _client.Create("tv/" + tvShowListType);
 
             language = language ?? DefaultLanguage;
-            if (!String.IsNullOrWhiteSpace(language))
+            if (!string.IsNullOrWhiteSpace(language))
                 req.AddParameter("language", language);
 
             if (page >= 1)
-                req.AddParameter("page", page);
+                req.AddParameter("page", page.ToString());
 
-            IRestResponse<SearchContainer<SearchTv>> response = _client.Get<SearchContainer<SearchTv>>(req);
+            RestResponse<SearchContainer<SearchTv>> response = await req.ExecuteGet<SearchContainer<SearchTv>>().ConfigureAwait(false);
 
-            return response.Data;
-        }
-
-        /// <summary>
-        /// Returns a credits object for the tv show associated with the provided TMDb id.
-        /// </summary>
-        /// <param name="id">The TMDb id of the target tv show.</param>
-        /// <param name="language">If specified the api will attempt to return a localized result. ex: en,it,es </param>
-        public Credits GetTvShowCredits(int id, string language = null)
-        {
-            return GetTvShowMethod<Credits>(id, TvShowMethods.Credits, dateFormat: "yyyy-MM-dd", language: language);
-        }
-
-        /// <summary>
-        /// Retrieves all images all related to the specified tv show.
-        /// </summary>
-        /// <param name="id">The TMDb id of the target tv show.</param>
-        /// <param name="language">
-        /// If specified the api will attempt to return a localized result. ex: en,it,es.
-        /// For images this means that the image might contain language specifc text
-        /// </param>
-        public ImagesWithId GetTvShowImages(int id, string language = null)
-        {
-            return GetTvShowMethod<ImagesWithId>(id, TvShowMethods.Images, language: language);
-        }
-
-        /// <summary>
-        /// Returns an object that contains all known exteral id's for the tv show related to the specified TMDB id.
-        /// </summary>
-        /// <param name="id">The TMDb id of the target tv show.</param>
-        public ExternalIds GetTvShowExternalIds(int id)
-        {
-            return GetTvShowMethod<ExternalIds>(id, TvShowMethods.ExternalIds);
-        }
-
-        public SearchContainer<SearchTv> GetTvShowSimilar(int id, int page = 0)
-        {
-            return GetTvShowSimilar(id, DefaultLanguage, page);
-        }
-
-        public SearchContainer<SearchTv> GetTvShowSimilar(int id, string language, int page)
-        {
-            return GetTvShowMethod<SearchContainer<SearchTv>>(id, TvShowMethods.Similar, language: language, page: page);
-        }
-
-        public ResultContainer<ContentRating> GetTvShowContentRatings(int id)
-        {
-            return GetTvShowMethod<ResultContainer<ContentRating>>(id, TvShowMethods.ContentRatings);
-        }
-
-        public ResultContainer<AlternativeTitle> GetTvShowAlternativeTitles(int id)
-        {
-            return GetTvShowMethod<ResultContainer<AlternativeTitle>>(id, TvShowMethods.AlternativeTitles);
-        }
-
-        public ResultContainer<Keyword> GetTvShowKeywords(int id)
-        {
-            return GetTvShowMethod<ResultContainer<Keyword>>(id, TvShowMethods.Keywords);
-        }
-
-        public ResultContainer<Video> GetTvShowVideos(int id)
-        {
-            return GetTvShowMethod<ResultContainer<Video>>(id, TvShowMethods.Videos);
-        }
-
-        public TranslationsContainer GetTvShowTranslations(int id)
-        {
-            return GetTvShowMethod<TranslationsContainer>(id, TvShowMethods.Translations);
-        }
-
-        public ChangesContainer GetTvShowChanges(int id)
-        {
-            return GetTvShowMethod<ChangesContainer>(id, TvShowMethods.Changes);
-        }
-
-        public TvShow GetLatestTvShow()
-        {
-            RestRequest req = new RestRequest("tv/latest");
-
-            IRestResponse<TvShow> resp = _client.Get<TvShow>(req);
-
-            return resp.Data;
+            return response;
         }
 
         /// <summary>
@@ -194,9 +129,9 @@ namespace TMDbLib.Client
         /// <param name="page">Page</param>
         /// <param name="timezone">Only relevant for list type AiringToday</param>
         /// <returns></returns>
-        public SearchContainer<TvShow> GetTvShowList(TvShowListType list, int page = 0, string timezone = null)
+        public async Task<SearchContainer<TvShow>> GetTvShowListAsync(TvShowListType list, int page = 0, string timezone = null)
         {
-            return GetTvShowList(list, DefaultLanguage, page, timezone);
+            return await GetTvShowListAsync(list, DefaultLanguage, page, timezone).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -207,45 +142,127 @@ namespace TMDbLib.Client
         /// <param name="page">Page</param>
         /// <param name="timezone">Only relevant for list type AiringToday</param>
         /// <returns></returns>
-        public SearchContainer<TvShow> GetTvShowList(TvShowListType list, string language, int page = 0, string timezone = null)
+        public async Task<SearchContainer<TvShow>> GetTvShowListAsync(TvShowListType list, string language, int page = 0, string timezone = null)
         {
-            RestRequest req = new RestRequest("tv/{method}");
+            RestRequest req = _client.Create("tv/{method}");
             req.AddUrlSegment("method", list.GetDescription());
 
             if (page > 0)
-                req.AddParameter("page", page);
+                req.AddParameter("page", page.ToString());
 
             if (!string.IsNullOrEmpty(timezone))
                 req.AddParameter("timezone", timezone);
 
             language = language ?? DefaultLanguage;
-            if (!String.IsNullOrWhiteSpace(language))
+            if (!string.IsNullOrWhiteSpace(language))
                 req.AddParameter("language", language);
 
-            IRestResponse<SearchContainer<TvShow>> resp = _client.Get<SearchContainer<TvShow>>(req);
+            RestResponse<SearchContainer<TvShow>> resp = await req.ExecuteGet<SearchContainer<TvShow>>().ConfigureAwait(false);
 
-            return resp.Data;
+            return resp;
         }
 
-        private T GetTvShowMethod<T>(int id, TvShowMethods tvShowMethod, string dateFormat = null, string language = null, int page = 0) where T : new()
+        /// <summary>
+        /// Returns a credits object for the tv show associated with the provided TMDb id.
+        /// </summary>
+        /// <param name="id">The TMDb id of the target tv show.</param>
+        /// <param name="language">If specified the api will attempt to return a localized result. ex: en,it,es </param>
+        public async Task<Credits> GetTvShowCreditsAsync(int id, string language = null)
         {
-            RestRequest req = new RestRequest("tv/{id}/{method}");
+            return await GetTvShowMethod<Credits>(id, TvShowMethods.Credits, dateFormat: "yyyy-MM-dd", language: language).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Retrieves all images all related to the specified tv show.
+        /// </summary>
+        /// <param name="id">The TMDb id of the target tv show.</param>
+        /// <param name="language">
+        /// If specified the api will attempt to return a localized result. ex: en,it,es.
+        /// For images this means that the image might contain language specifc text
+        /// </param>
+        public async Task<ImagesWithId> GetTvShowImagesAsync(int id, string language = null)
+        {
+            return await GetTvShowMethod<ImagesWithId>(id, TvShowMethods.Images, language: language).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Returns an object that contains all known exteral id's for the tv show related to the specified TMDB id.
+        /// </summary>
+        /// <param name="id">The TMDb id of the target tv show.</param>
+        public async Task<ExternalIds> GetTvShowExternalIdsAsync(int id)
+        {
+            return await GetTvShowMethod<ExternalIds>(id, TvShowMethods.ExternalIds).ConfigureAwait(false);
+        }
+
+        public async Task<SearchContainer<SearchTv>> GetTvShowSimilarAsync(int id, int page = 0)
+        {
+            return await GetTvShowSimilarAsync(id, DefaultLanguage, page).ConfigureAwait(false);
+        }
+
+        public async Task<SearchContainer<SearchTv>> GetTvShowSimilarAsync(int id, string language, int page)
+        {
+            return await GetTvShowMethod<SearchContainer<SearchTv>>(id, TvShowMethods.Similar, language: language, page: page).ConfigureAwait(false);
+        }
+
+        public async Task<ResultContainer<ContentRating>> GetTvShowContentRatingsAsync(int id)
+        {
+            return await GetTvShowMethod<ResultContainer<ContentRating>>(id, TvShowMethods.ContentRatings).ConfigureAwait(false);
+        }
+
+        public async Task<ResultContainer<AlternativeTitle>> GetTvShowAlternativeTitlesAsync(int id)
+        {
+            return await GetTvShowMethod<ResultContainer<AlternativeTitle>>(id, TvShowMethods.AlternativeTitles).ConfigureAwait(false);
+        }
+
+        public async Task<ResultContainer<Keyword>> GetTvShowKeywordsAsync(int id)
+        {
+            return await GetTvShowMethod<ResultContainer<Keyword>>(id, TvShowMethods.Keywords).ConfigureAwait(false);
+        }
+
+        public async Task<ResultContainer<Video>> GetTvShowVideosAsync(int id)
+        {
+            return await GetTvShowMethod<ResultContainer<Video>>(id, TvShowMethods.Videos).ConfigureAwait(false);
+        }
+
+        public async Task<TranslationsContainer> GetTvShowTranslationsAsync(int id)
+        {
+            return await GetTvShowMethod<TranslationsContainer>(id, TvShowMethods.Translations).ConfigureAwait(false);
+        }
+
+        public async Task<ChangesContainer> GetTvShowChangesAsync(int id)
+        {
+            return await GetTvShowMethod<ChangesContainer>(id, TvShowMethods.Changes).ConfigureAwait(false);
+        }
+
+        public async Task<TvShow> GetLatestTvShowAsync()
+        {
+            RestRequest req = _client.Create("tv/latest");
+
+            RestResponse<TvShow> resp = await req.ExecuteGet<TvShow>().ConfigureAwait(false);
+
+            return resp;
+        }
+
+        private async Task<T> GetTvShowMethod<T>(int id, TvShowMethods tvShowMethod, string dateFormat = null, string language = null, int page = 0) where T : new()
+        {
+            RestRequest req = _client.Create("tv/{id}/{method}");
             req.AddUrlSegment("id", id.ToString(CultureInfo.InvariantCulture));
             req.AddUrlSegment("method", tvShowMethod.GetDescription());
 
-            if (dateFormat != null)
-                req.DateFormat = dateFormat;
+            // TODO: Dateformat?
+            //if (dateFormat != null)
+            //    req.DateFormat = dateFormat;
 
             if (page > 0)
-                req.AddParameter("page", page);
+                req.AddParameter("page", page.ToString());
 
             language = language ?? DefaultLanguage;
-            if (!String.IsNullOrWhiteSpace(language))
+            if (!string.IsNullOrWhiteSpace(language))
                 req.AddParameter("language", language);
 
-            IRestResponse<T> resp = _client.Get<T>(req);
+            RestResponse<T> resp = await req.ExecuteGet<T>().ConfigureAwait(false);
 
-            return resp.Data;
+            return resp;
         }
 
         /// <summary>
@@ -254,24 +271,26 @@ namespace TMDbLib.Client
         /// <param name="tvShowId">The id of the tv show to get the account states for</param>
         /// <remarks>Requires a valid user session</remarks>
         /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public AccountState GetTvShowAccountState(int tvShowId)
+        public async Task<AccountState> GetTvShowAccountStateAsync(int tvShowId)
         {
             RequireSessionId(SessionType.UserSession);
 
-            RestRequest request = new RestRequest("tv/{tvShowId}/{method}");
-            request.AddUrlSegment("tvShowId", tvShowId.ToString(CultureInfo.InvariantCulture));
-            request.AddUrlSegment("method", TvShowMethods.AccountStates.GetDescription());
-            request.AddParameter("session_id", SessionId);
+            RestRequest req = _client.Create("tv/{tvShowId}/{method}");
+            req.AddUrlSegment("tvShowId", tvShowId.ToString(CultureInfo.InvariantCulture));
+            req.AddUrlSegment("method", TvShowMethods.AccountStates.GetDescription());
+            AddSessionId(req, SessionType.UserSession);
 
-            IRestResponse<AccountState> response = _client.Get<AccountState>(request);
+            RestResponse<AccountState> response = await req.ExecuteGet<AccountState>().ConfigureAwait(false);
+
+            AccountState item = await response.GetDataObject().ConfigureAwait(false);
 
             // Do some custom deserialization, since TMDb uses a property that changes type we can't use automatic deserialization
-            if (response.Data != null)
+            if (item != null)
             {
-                CustomDeserialization.DeserializeAccountStatesRating(response.Data, response.Content);
+                CustomDeserialization.DeserializeAccountStatesRating(item, await response.GetContent().ConfigureAwait(false));
             }
 
-            return response.Data;
+            return item;
         }
 
         /// <summary>
@@ -282,24 +301,41 @@ namespace TMDbLib.Client
         /// <returns>True if the the tv show's rating was successfully updated, false if not</returns>
         /// <remarks>Requires a valid guest or user session</remarks>
         /// <exception cref="GuestSessionRequiredException">Thrown when the current client object doens't have a guest or user session assigned.</exception>
-        public bool TvShowSetRating(int tvShowId, double rating)
+        public async Task<bool> TvShowSetRatingAsync(int tvShowId, double rating)
         {
             RequireSessionId(SessionType.GuestSession);
 
-            RestRequest request = new RestRequest("tv/{tvShowId}/rating") { RequestFormat = DataFormat.Json };
-            request.AddUrlSegment("tvShowId", tvShowId.ToString(CultureInfo.InvariantCulture));
-            if (SessionType == SessionType.UserSession)
-                request.AddParameter("session_id", SessionId, ParameterType.QueryString);
-            else
-                request.AddParameter("guest_session_id", SessionId, ParameterType.QueryString);
+            RestRequest req = _client.Create("tv/{tvShowId}/rating");
+            req.AddUrlSegment("tvShowId", tvShowId.ToString(CultureInfo.InvariantCulture));
+            AddSessionId(req);
 
-            request.AddBody(new { value = rating });
+            req.SetBody(new { value = rating });
 
-            IRestResponse<PostReply> response = _client.Post<PostReply>(request);
+            RestResponse<PostReply> response = await req.ExecutePost<PostReply>().ConfigureAwait(false);
 
             // status code 1 = "Success"
             // status code 12 = "The item/record was updated successfully" - Used when an item was previously rated by the user
-            return response.Data != null && (response.Data.StatusCode == 1 || response.Data.StatusCode == 12);
+            PostReply item = await response.GetDataObject().ConfigureAwait(false);
+
+            // TODO: Original code had a check for item=null
+            return item.StatusCode == 1 || item.StatusCode == 12;
+        }
+
+        public async Task<bool> TvShowRemoveRatingAsync(int tvShowId)
+        {
+            RequireSessionId(SessionType.GuestSession);
+
+            RestRequest req = _client.Create("tv/{tvShowId}/rating");
+            req.AddUrlSegment("tvShowId", tvShowId.ToString(CultureInfo.InvariantCulture));
+            AddSessionId(req);
+
+            RestResponse<PostReply> response = await req.ExecuteDelete<PostReply>().ConfigureAwait(false);
+
+            // status code 13 = "The item/record was deleted successfully."
+            PostReply item = await response.GetDataObject().ConfigureAwait(false);
+
+            // TODO: Original code had a check for item=null
+            return item.StatusCode == 13;
         }
     }
 }

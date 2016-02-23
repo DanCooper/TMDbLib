@@ -1,7 +1,7 @@
-﻿using RestSharp;
-using RestSharp.Contrib;
-using TMDbLib.Objects.Credit;
+﻿using System.Net;
+using System.Threading.Tasks;
 using TMDbLib.Objects.Find;
+using TMDbLib.Rest;
 using TMDbLib.Utilities;
 
 namespace TMDbLib.Client
@@ -9,7 +9,7 @@ namespace TMDbLib.Client
     public partial class TMDbClient
     {
         /// <summary>
-        /// Find movies, people and tv shows by an external id.
+        /// FindAsync movies, people and tv shows by an external id.
         /// The following trypes can be found based on the specified external id's
         /// - Movies: Imdb
         /// - People: Imdb, FreeBaseMid, FreeBaseId, TvRage
@@ -18,21 +18,21 @@ namespace TMDbLib.Client
         /// <param name="source">The source the specified id belongs to</param>
         /// <param name="id">The id of the object you wish to located</param>
         /// <returns>A list of all objects in TMDb that matched your id</returns>
-        public FindContainer Find(FindExternalSource source, string id)
+        public async Task<FindContainer> FindAsync(FindExternalSource source, string id)
         {
-            RestRequest req = new RestRequest("find/{id}");
+            RestRequest req = _client.Create("find/{id}");
 
             if (source == FindExternalSource.FreeBaseId || source == FindExternalSource.FreeBaseMid)
                 // No url encoding for freebase Id's (they include /-slashes)
                 req.AddUrlSegment("id", id);
             else
-                req.AddUrlSegment("id", HttpUtility.UrlEncode(id));
+                req.AddUrlSegment("id", WebUtility.UrlEncode(id));
 
             req.AddParameter("external_source", source.GetDescription());
 
-            IRestResponse<FindContainer> resp = _client.Get<FindContainer>(req);
+            RestResponse<FindContainer> resp = await req.ExecuteGet<FindContainer>().ConfigureAwait(false);
 
-            return resp.Data;
+            return resp;
         }
     }
 }

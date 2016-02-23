@@ -1,13 +1,15 @@
-﻿using System.ComponentModel;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace TMDbLib.Objects.General
 {
     public enum MediaType
     {
-        [Description("movie")]
+        Unknown,
+
+        [Display(Description = "movie")]
         Movie,
-        [Description("tv")]
-        TVShow,
-        Unknown
+
+        [Display(Description = "tv")]
+        TVShow
     }
 }

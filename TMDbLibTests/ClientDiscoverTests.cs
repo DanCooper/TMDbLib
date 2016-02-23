@@ -3,7 +3,6 @@ using TMDbLib.Objects.Discover;
 using TMDbLib.Objects.General;
 using System.Linq;
 using TMDbLib.Objects.Search;
-using TMDbLib.Objects.TvShows;
 using TMDbLibTests.Helpers;
 
 namespace TMDbLibTests
@@ -25,9 +24,9 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestDiscoverTvShowsNoParams()
         {
-            TestHelpers.SearchPages(i => _config.Client.DiscoverTvShows(null, page: i));
+            TestHelpers.SearchPages(i => _config.Client.DiscoverTvShowsAsync().Query(i).Result);
 
-            SearchContainer<SearchTv> result = _config.Client.DiscoverTvShows(null);
+            SearchContainer<SearchTv> result = _config.Client.DiscoverTvShowsAsync().Query().Result;
 
             Assert.IsNotNull(result);
             Assert.AreEqual(1, result.Page);
@@ -38,19 +37,19 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestDiscoverTvShows()
         {
-            DiscoverTv query = new DiscoverTv()
+            DiscoverTv query = _config.Client.DiscoverTvShowsAsync()
                     .WhereVoteCountIsAtLeast(100)
                     .WhereVoteAverageIsAtLeast(2);
 
-            TestHelpers.SearchPages(i => _config.Client.DiscoverTvShows(query, page: i));
+            TestHelpers.SearchPages(i => query.Query(i).Result);
         }
 
         [TestMethod]
         public void TestDiscoverMoviesNoParams()
         {
-            TestHelpers.SearchPages(i => _config.Client.DiscoverMovies(null, page: i));
+            TestHelpers.SearchPages(i => _config.Client.DiscoverMoviesAsync().Query(i).Result);
 
-            SearchContainer<SearchMovie> result = _config.Client.DiscoverMovies(discover: null);
+            SearchContainer<SearchMovie> result = _config.Client.DiscoverMoviesAsync().Query().Result;
 
             Assert.IsNotNull(result);
             Assert.AreEqual(1, result.Page);
@@ -61,11 +60,11 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestDiscoverMovies()
         {
-            DiscoverMovie query = new DiscoverMovie()
+            DiscoverMovie query = _config.Client.DiscoverMoviesAsync()
                     .WhereVoteCountIsAtLeast(1000)
                     .WhereVoteAverageIsAtLeast(2);
 
-            TestHelpers.SearchPages(i => _config.Client.DiscoverMovies(query, page: i));
+            TestHelpers.SearchPages(i => query.Query(i).Result);
         }
     }
 }

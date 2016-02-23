@@ -1,8 +1,9 @@
 ﻿using System;
-using RestSharp;
+using System.Threading.Tasks;
 using TMDbLib.Objects.Authentication;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Lists;
+using TMDbLib.Rest;
 
 namespace TMDbLib.Client
 {
@@ -12,19 +13,17 @@ namespace TMDbLib.Client
         /// Retrieve a list by it's id
         /// </summary>
         /// <param name="listId">The id of the list you want to retrieve</param>
-        public List GetList(string listId)
+        public async Task<List> GetListAsync(string listId)
         {
             if (string.IsNullOrWhiteSpace(listId))
                 throw new ArgumentNullException("listId");
 
-            RestRequest request = new RestRequest("list/{listId}");
-            request.AddUrlSegment("listId", listId);
+            RestRequest req = _client.Create("list/{listId}");
+            req.AddUrlSegment("listId", listId);
 
-            request.DateFormat = "yyyy-MM-dd";
+            RestResponse<List> resp = await req.ExecuteGet<List>().ConfigureAwait(false);
 
-            IRestResponse<List> response = _client.Get<List>(request);
-
-            return response.Data;
+            return resp;
         }
 
         /// <summary>
@@ -32,7 +31,7 @@ namespace TMDbLib.Client
         /// </summary>
         /// <param name="listId">Id of the list to check in</param>
         /// <param name="movieId">Id of the movie to check for in the list</param>
-        public bool GetListIsMoviePresent(string listId, int movieId)
+        public async Task<bool> GetListIsMoviePresentAsync(string listId, int movieId)
         {
             if (string.IsNullOrWhiteSpace(listId))
                 throw new ArgumentNullException("listId");
@@ -40,13 +39,13 @@ namespace TMDbLib.Client
             if (movieId <= 0)
                 throw new ArgumentOutOfRangeException("movieId");
 
-            RestRequest request = new RestRequest("list/{listId}/item_status");
-            request.AddUrlSegment("listId", listId);
-            request.AddParameter("movie_id", movieId);
+            RestRequest req = _client.Create("list/{listId}/item_status");
+            req.AddUrlSegment("listId", listId);
+            req.AddParameter("movie_id", movieId.ToString());
 
-            IRestResponse<ListStatus> response = _client.Get<ListStatus>(request);
+            RestResponse<ListStatus> response = await req.ExecuteGet<ListStatus>().ConfigureAwait(false);
 
-            return response.Data.ItemPresent;
+            return (await response.GetDataObject().ConfigureAwait(false)).ItemPresent;
         }
 
         /// <summary>
@@ -57,7 +56,7 @@ namespace TMDbLib.Client
         /// <param name="language">Optional language that might indicate the language of the content in the list</param>
         /// <remarks>Requires a valid user session</remarks>
         /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public string ListCreate(string name, string description = "", string language = null)
+        public async Task<string> ListCreateAsync(string name, string description = "", string language = null)
         {
             RequireSessionId(SessionType.UserSession);
 
@@ -68,22 +67,23 @@ namespace TMDbLib.Client
             if (string.IsNullOrWhiteSpace(description))
                 description = "";
 
-            RestRequest request = new RestRequest("list") { RequestFormat = DataFormat.Json };
-            request.AddParameter("session_id", SessionId, ParameterType.QueryString);
+            RestRequest req = _client.Create("list");
+            AddSessionId(req, SessionType.UserSession);
+
             language = language ?? DefaultLanguage;
-            if (!String.IsNullOrWhiteSpace(language))
+            if (!string.IsNullOrWhiteSpace(language))
             {
-                request.AddBody(new { name = name, description = description, language = language });
+                req.SetBody(new { name = name, description = description, language = language });
 
             }
             else
             {
-                request.AddBody(new { name = name, description = description });
+                req.SetBody(new { name = name, description = description });
             }
 
-            IRestResponse<ListCreateReply> response = _client.Post<ListCreateReply>(request);
+            RestResponse<ListCreateReply> response = await req.ExecutePost<ListCreateReply>().ConfigureAwait(false);
 
-            return response.Data == null ? null : response.Data.ListId;
+            return (await response.GetDataObject().ConfigureAwait(false)).ListId;
         }
 
         /// <summary>
@@ -92,21 +92,24 @@ namespace TMDbLib.Client
         /// <param name="listId">A list id that is owned by the user associated with the current session id</param>
         /// <remarks>Requires a valid user session</remarks>
         /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public bool ListDelete(string listId)
+        public async Task<bool> ListDeleteAsync(string listId)
         {
             RequireSessionId(SessionType.UserSession);
 
             if (string.IsNullOrWhiteSpace(listId))
                 throw new ArgumentNullException("listId");
 
-            RestRequest request = new RestRequest("list/{listId}");
-            request.AddUrlSegment("listId", listId);
-            request.AddParameter("session_id", SessionId, ParameterType.QueryString);
+            RestRequest req = _client.Create("list/{listId}");
+            req.AddUrlSegment("listId", listId);
+            AddSessionId(req, SessionType.UserSession);
 
-            IRestResponse<PostReply> response = _client.Delete<PostReply>(request);
+            RestResponse<PostReply> response = await req.ExecuteDelete<PostReply>().ConfigureAwait(false);
 
             // Status code 13 = success
-            return response.Data != null && response.Data.StatusCode == 13;
+            PostReply item = await response.GetDataObject().ConfigureAwait(false);
+
+            // TODO: Previous code checked for item=null
+            return item.StatusCode == 13;
         }
 
         /// <summary>
@@ -117,9 +120,9 @@ namespace TMDbLib.Client
         /// <returns>True if the method was able to add the movie to the list, will retrun false in case of an issue or when the movie was already added to the list</returns>
         /// <remarks>Requires a valid user session</remarks>
         /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public bool ListAddMovie(string listId, int movieId)
+        public async Task<bool> ListAddMovieAsync(string listId, int movieId)
         {
-            return ManipulateMediaList(listId, movieId, "add_item");
+            return await ManipulateMediaListAsync(listId, movieId, "add_item").ConfigureAwait(false);
         }
 
         /// <summary>
@@ -130,9 +133,9 @@ namespace TMDbLib.Client
         /// <returns>True if the method was able to remove the movie from the list, will retrun false in case of an issue or when the movie was not present in the list</returns>
         /// <remarks>Requires a valid user session</remarks>
         /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public bool ListRemoveMovie(string listId, int movieId)
+        public async Task<bool> ListRemoveMovieAsync(string listId, int movieId)
         {
-            return ManipulateMediaList(listId, movieId, "remove_item");
+            return await ManipulateMediaListAsync(listId, movieId, "remove_item").ConfigureAwait(false);
         }
 
         /// <summary>
@@ -142,25 +145,28 @@ namespace TMDbLib.Client
         /// <returns>True if the method was able to remove the movie from the list, will retrun false in case of an issue or when the movie was not present in the list</returns>
         /// <remarks>Requires a valid user session</remarks>
         /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public bool ListClear(string listId)
+        public async Task<bool> ListClearAsync(string listId)
         {
             RequireSessionId(SessionType.UserSession);
 
             if (string.IsNullOrWhiteSpace(listId))
                 throw new ArgumentNullException("listId");
 
-            RestRequest request = new RestRequest("list/{listId}/clear") { RequestFormat = DataFormat.Json };
+            RestRequest request = _client.Create("list/{listId}/clear");
             request.AddUrlSegment("listId", listId);
-            request.AddParameter("session_id", SessionId, ParameterType.QueryString);
             request.AddParameter("confirm", "true");
+            AddSessionId(request, SessionType.UserSession);
 
-            IRestResponse<PostReply> response = _client.Post<PostReply>(request);
+            RestResponse<PostReply> response = await request.ExecutePost<PostReply>().ConfigureAwait(false);
 
             // Status code 12 = "The item/record was updated successfully"
-            return response.Data != null && response.Data.StatusCode == 12;
+            PostReply item = await response.GetDataObject().ConfigureAwait(false);
+
+            // TODO: Previous code checked for item=null
+            return item.StatusCode == 12;
         }
 
-        private bool ManipulateMediaList(string listId, int movieId, string method)
+        private async Task<bool> ManipulateMediaListAsync(string listId, int movieId, string method)
         {
             RequireSessionId(SessionType.UserSession);
 
@@ -171,17 +177,21 @@ namespace TMDbLib.Client
             if (movieId <= 0)
                 throw new ArgumentOutOfRangeException("movieId");
 
-            RestRequest request = new RestRequest("list/{listId}/{method}") { RequestFormat = DataFormat.Json };
-            request.AddUrlSegment("listId", listId);
-            request.AddUrlSegment("method", method);
-            request.AddParameter("session_id", SessionId, ParameterType.QueryString);
-            request.AddBody(new { media_id = movieId });
+            RestRequest req = _client.Create("list/{listId}/{method}");
+            req.AddUrlSegment("listId", listId);
+            req.AddUrlSegment("method", method);
+            AddSessionId(req, SessionType.UserSession);
 
-            IRestResponse<PostReply> response = _client.Post<PostReply>(request);
+            req.SetBody(new { media_id = movieId });
+
+            RestResponse<PostReply> response = await req.ExecutePost<PostReply>().ConfigureAwait(false);
 
             // Status code 12 = "The item/record was updated successfully"
             // Status code 13 = "The item/record was deleted successfully"
-            return response.Data != null && (response.Data.StatusCode == 12 || response.Data.StatusCode == 13);
+            PostReply item = await response.GetDataObject().ConfigureAwait(false);
+
+            // TODO: Previous code checked for item=null
+            return item.StatusCode == 12 || item.StatusCode == 13;
         }
     }
 }

@@ -1,41 +1,41 @@
-﻿using System;
-using RestSharp;
+﻿using System.Threading.Tasks;
 using TMDbLib.Objects.General;
+using TMDbLib.Rest;
 
 namespace TMDbLib.Client
 {
     public partial class TMDbClient
     {
-        public Keyword GetKeyword(int keywordId)
+        public async Task<Keyword> GetKeywordAsync(int keywordId)
         {
-            RestRequest req = new RestRequest("keyword/{keywordId}");
+            RestRequest req = _client.Create("keyword/{keywordId}");
             req.AddUrlSegment("keywordId", keywordId.ToString());
 
-            IRestResponse<Keyword> resp = _client.Get<Keyword>(req);
+            RestResponse<Keyword> resp = await req.ExecuteGet<Keyword>().ConfigureAwait(false);
 
-            return resp.Data;
+            return resp;
         }
 
-        public SearchContainer<MovieResult> GetKeywordMovies(int keywordId, int page = 0)
+        public async Task<SearchContainer<MovieResult>> GetKeywordMoviesAsync(int keywordId, int page = 0)
         {
-            return GetKeywordMovies(keywordId, DefaultLanguage, page);
+            return await GetKeywordMoviesAsync(keywordId, DefaultLanguage, page).ConfigureAwait(false);
         }
 
-        public SearchContainer<MovieResult> GetKeywordMovies(int keywordId, string language, int page = 0)
+        public async Task<SearchContainer<MovieResult>> GetKeywordMoviesAsync(int keywordId, string language, int page = 0)
         {
-            RestRequest req = new RestRequest("keyword/{keywordId}/movies");
+            RestRequest req = _client.Create("keyword/{keywordId}/movies");
             req.AddUrlSegment("keywordId", keywordId.ToString());
 
             language = language ?? DefaultLanguage;
-            if (!String.IsNullOrWhiteSpace(language))
+            if (!string.IsNullOrWhiteSpace(language))
                 req.AddParameter("language", language);
 
             if (page >= 1)
-                req.AddParameter("page", page);
+                req.AddParameter("page", page.ToString());
 
-            IRestResponse<SearchContainer<MovieResult>> resp = _client.Get<SearchContainer<MovieResult>>(req);
+            RestResponse<SearchContainer<MovieResult>> resp = await req.ExecuteGet<SearchContainer<MovieResult>>().ConfigureAwait(false);
 
-            return resp.Data;
+            return resp;
         }
     }
 }

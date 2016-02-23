@@ -22,7 +22,7 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestCertificationsListMovie()
         {
-            CertificationsContainer result = _config.Client.GetMovieCertifications();
+            CertificationsContainer result = _config.Client.GetMovieCertificationsAsync().Result;
             Assert.IsNotNull(result);
             Assert.IsNotNull(result.Certifications);
             Assert.IsTrue(result.Certifications.Count > 1);
@@ -42,7 +42,7 @@ namespace TMDbLibTests
         [TestMethod]
         public void TestCertificationsListTv()
         {
-            CertificationsContainer result = _config.Client.GetTvCertifications();
+            CertificationsContainer result = _config.Client.GetTvCertificationsAsync().Result;
             Assert.IsNotNull(result);
             Assert.IsNotNull(result.Certifications);
             Assert.IsTrue(result.Certifications.Count > 1);

@@ -1,20 +1,22 @@
 ﻿using System;
-using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 
 namespace TMDbLib.Objects.TvShows
 {
     [Flags]
     public enum TvEpisodeMethods
     {
-        [Description("Undefined")]
+        [Display(Description = "Undefined")]
         Undefined = 0,
-        [Description("credits")]
+        [Display(Description = "credits")]
         Credits = 1,
-        [Description("images")]
+        [Display(Description = "images")]
         Images = 2,
-        [Description("external_ids")]
+        [Display(Description = "external_ids")]
         ExternalIds = 4,
-        [Description("videos")]
-        Videos = 8
+        [Display(Description = "videos")]
+        Videos = 8,
+        [Display(Description = "account_states")]
+        AccountStates = 16,
     }
 }
