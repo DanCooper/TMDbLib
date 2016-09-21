@@ -1,61 +1,46 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 using TMDbLib.Client;
 using TMDbLib.Objects.Exceptions;
 using TMDbLib.Objects.General;
 using TMDbLibTests.Helpers;
+using TMDbLibTests.JsonHelpers;
 
 namespace TMDbLibTests
 {
-    [TestClass]
-    public class ClientTests
+    public class ClientTests : TestBase
     {
-        private TestConfig _config;
-
-        /// <summary>
-        /// Run once, on every test
-        /// </summary>
-        [TestInitialize]
-        public void Initiator()
-        {
-            _config = new TestConfig();
-        }
-
-        [TestMethod]
+        [Fact]
         public void GetConfigTest()
         {
-            Assert.IsFalse(_config.Client.HasConfig);
-            _config.Client.GetConfig();
-            Assert.IsTrue(_config.Client.HasConfig);
+            Assert.False(Config.Client.HasConfig);
+            Config.Client.GetConfig();
+            Assert.True(Config.Client.HasConfig);
 
-            Assert.IsNotNull(_config.Client.Config);
+            Assert.NotNull(Config.Client.Config);
         }
 
-        [TestMethod]
+        [Fact]
         public void GetConfigSslTest()
         {
-            _config = new TestConfig(true);
+            TestConfig config = new TestConfig(true);
 
-            Assert.IsFalse(_config.Client.HasConfig);
-            _config.Client.GetConfig();
-            Assert.IsTrue(_config.Client.HasConfig);
+            Assert.False(config.Client.HasConfig);
+            config.Client.GetConfig();
+            Assert.True(config.Client.HasConfig);
 
-            Assert.IsNotNull(_config.Client.Config);
+            Assert.NotNull(config.Client.Config);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException), AllowDerivedTypes = false)]
+        [Fact]
         public void GetConfigFailTest()
         {
-            TMDbConfig config = _config.Client.Config;
-
-            // Should always throw exception
-            Assert.Fail();
+            Assert.Throws<InvalidOperationException>(() => Config.Client.Config);
         }
 
-        [TestMethod]
+        [Fact]
         public void SetConfigTest()
         {
             TMDbConfig config = new TMDbConfig();
@@ -64,42 +49,38 @@ namespace TMDbLibTests
             config.Images = new ConfigImageTypes();
             config.Images.BaseUrl = " ..";
 
-            Assert.IsFalse(_config.Client.HasConfig);
-            _config.Client.SetConfig(config);
-            Assert.IsTrue(_config.Client.HasConfig);
+            Assert.False(Config.Client.HasConfig);
+            Config.Client.SetConfig(config);
+            Assert.True(Config.Client.HasConfig);
 
-            Assert.AreSame(config, _config.Client.Config);
+            Assert.Same(config, Config.Client.Config);
         }
 
-        [TestMethod]
+        [Fact]
         public void ClientConstructorUrlTest()
         {
-            TMDbClient clientA = new TMDbClient(TestConfig.APIKey, false, "http://api.themoviedb.org");
+            TMDbClient clientA = new TMDbClient(TestConfig.APIKey, false, "http://api.themoviedb.org") { MaxRetryCount = 2 };
             clientA.GetConfig();
 
-            TMDbClient clientB = new TMDbClient(TestConfig.APIKey, true, "http://api.themoviedb.org");
+            TMDbClient clientB = new TMDbClient(TestConfig.APIKey, true, "http://api.themoviedb.org") { MaxRetryCount = 2 };
             clientB.GetConfig();
 
-            TMDbClient clientC = new TMDbClient(TestConfig.APIKey, false, "https://api.themoviedb.org");
+            TMDbClient clientC = new TMDbClient(TestConfig.APIKey, false, "https://api.themoviedb.org") { MaxRetryCount = 2 };
             clientC.GetConfig();
 
-            TMDbClient clientD = new TMDbClient(TestConfig.APIKey, true, "https://api.themoviedb.org");
+            TMDbClient clientD = new TMDbClient(TestConfig.APIKey, true, "https://api.themoviedb.org") { MaxRetryCount = 2 };
             clientD.GetConfig();
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        [Fact]
         public void ClientSetBadMaxRetryValue()
-        { 
+        {
             TMDbClient client = new TMDbClient(TestConfig.APIKey);
 
-            client.MaxRetryCount = -1;
-            
-            Assert.Fail();
+            Assert.Throws<ArgumentOutOfRangeException>(() => client.MaxRetryCount = -1);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(RequestLimitExceededException))]
+        [Fact]
         public void ClientRateLimitTest()
         {
             const int id = IdHelper.AGoodDayToDieHard;
@@ -107,28 +88,21 @@ namespace TMDbLibTests
             TMDbClient client = new TMDbClient(TestConfig.APIKey);
             client.MaxRetryCount = 0;
 
-            try
+            Assert.Throws<RequestLimitExceededException>(() =>
             {
-                Parallel.For(0, 100, i =>
+                try
                 {
-                    try
+                    Parallel.For(0, 100, i =>
                     {
-                        client.GetMovieAsync(id).Wait();
-                    }
-                    catch (AggregateException ex)
-                    {
-                        // Unpack the InnerException
-                        throw ex.InnerException;
-                    }
-                });
-            }
-            catch (AggregateException ex)
-            {
-                // Unpack the InnerException
-                throw ex.InnerException;
-            }
-
-            Assert.Fail();
+                        client.GetMovieAsync(id).Sync();
+                    });
+                }
+                catch (AggregateException ex)
+                {
+                    // Unpack the InnerException
+                    throw ex.InnerException;
+                }
+            });
         }
     }
 }

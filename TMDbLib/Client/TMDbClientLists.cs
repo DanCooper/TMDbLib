@@ -13,15 +13,15 @@ namespace TMDbLib.Client
         /// Retrieve a list by it's id
         /// </summary>
         /// <param name="listId">The id of the list you want to retrieve</param>
-        public async Task<List> GetListAsync(string listId)
+        public async Task<GenericList> GetListAsync(string listId)
         {
             if (string.IsNullOrWhiteSpace(listId))
-                throw new ArgumentNullException("listId");
+                throw new ArgumentNullException(nameof(listId));
 
             RestRequest req = _client.Create("list/{listId}");
             req.AddUrlSegment("listId", listId);
 
-            RestResponse<List> resp = await req.ExecuteGet<List>().ConfigureAwait(false);
+            RestResponse<GenericList> resp = await req.ExecuteGet<GenericList>().ConfigureAwait(false);
 
             return resp;
         }
@@ -34,10 +34,10 @@ namespace TMDbLib.Client
         public async Task<bool> GetListIsMoviePresentAsync(string listId, int movieId)
         {
             if (string.IsNullOrWhiteSpace(listId))
-                throw new ArgumentNullException("listId");
+                throw new ArgumentNullException(nameof(listId));
 
             if (movieId <= 0)
-                throw new ArgumentOutOfRangeException("movieId");
+                throw new ArgumentOutOfRangeException(nameof(movieId));
 
             RestRequest req = _client.Create("list/{listId}/item_status");
             req.AddUrlSegment("listId", listId);
@@ -46,6 +46,47 @@ namespace TMDbLib.Client
             RestResponse<ListStatus> response = await req.ExecuteGet<ListStatus>().ConfigureAwait(false);
 
             return (await response.GetDataObject().ConfigureAwait(false)).ItemPresent;
+        }
+
+        /// <summary>
+        /// Adds a movie to a specified list
+        /// </summary>
+        /// <param name="listId">The id of the list to add the movie to</param>
+        /// <param name="movieId">The id of the movie to add</param>
+        /// <returns>True if the method was able to add the movie to the list, will retrun false in case of an issue or when the movie was already added to the list</returns>
+        /// <remarks>Requires a valid user session</remarks>
+        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
+        public async Task<bool> ListAddMovieAsync(string listId, int movieId)
+        {
+            return await ManipulateMediaListAsync(listId, movieId, "add_item").ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Clears a list, without confirmation.
+        /// </summary>
+        /// <param name="listId">The id of the list to clear</param>
+        /// <returns>True if the method was able to remove the movie from the list, will retrun false in case of an issue or when the movie was not present in the list</returns>
+        /// <remarks>Requires a valid user session</remarks>
+        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
+        public async Task<bool> ListClearAsync(string listId)
+        {
+            RequireSessionId(SessionType.UserSession);
+
+            if (string.IsNullOrWhiteSpace(listId))
+                throw new ArgumentNullException(nameof(listId));
+
+            RestRequest request = _client.Create("list/{listId}/clear");
+            request.AddUrlSegment("listId", listId);
+            request.AddParameter("confirm", "true");
+            AddSessionId(request, SessionType.UserSession);
+
+            RestResponse<PostReply> response = await request.ExecutePost<PostReply>().ConfigureAwait(false);
+
+            // Status code 12 = "The item/record was updated successfully"
+            PostReply item = await response.GetDataObject().ConfigureAwait(false);
+
+            // TODO: Previous code checked for item=null
+            return item.StatusCode == 12;
         }
 
         /// <summary>
@@ -61,7 +102,7 @@ namespace TMDbLib.Client
             RequireSessionId(SessionType.UserSession);
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
 
             // Description is expected by the API and can not be null
             if (string.IsNullOrWhiteSpace(description))
@@ -97,7 +138,7 @@ namespace TMDbLib.Client
             RequireSessionId(SessionType.UserSession);
 
             if (string.IsNullOrWhiteSpace(listId))
-                throw new ArgumentNullException("listId");
+                throw new ArgumentNullException(nameof(listId));
 
             RestRequest req = _client.Create("list/{listId}");
             req.AddUrlSegment("listId", listId);
@@ -113,19 +154,6 @@ namespace TMDbLib.Client
         }
 
         /// <summary>
-        /// Adds a movie to a specified list
-        /// </summary>
-        /// <param name="listId">The id of the list to add the movie to</param>
-        /// <param name="movieId">The id of the movie to add</param>
-        /// <returns>True if the method was able to add the movie to the list, will retrun false in case of an issue or when the movie was already added to the list</returns>
-        /// <remarks>Requires a valid user session</remarks>
-        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public async Task<bool> ListAddMovieAsync(string listId, int movieId)
-        {
-            return await ManipulateMediaListAsync(listId, movieId, "add_item").ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Removes a movie from the specified list
         /// </summary>
         /// <param name="listId">The id of the list to add the movie to</param>
@@ -138,44 +166,16 @@ namespace TMDbLib.Client
             return await ManipulateMediaListAsync(listId, movieId, "remove_item").ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Clears a list, without confirmation.
-        /// </summary>
-        /// <param name="listId">The id of the list to clear</param>
-        /// <returns>True if the method was able to remove the movie from the list, will retrun false in case of an issue or when the movie was not present in the list</returns>
-        /// <remarks>Requires a valid user session</remarks>
-        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public async Task<bool> ListClearAsync(string listId)
-        {
-            RequireSessionId(SessionType.UserSession);
-
-            if (string.IsNullOrWhiteSpace(listId))
-                throw new ArgumentNullException("listId");
-
-            RestRequest request = _client.Create("list/{listId}/clear");
-            request.AddUrlSegment("listId", listId);
-            request.AddParameter("confirm", "true");
-            AddSessionId(request, SessionType.UserSession);
-
-            RestResponse<PostReply> response = await request.ExecutePost<PostReply>().ConfigureAwait(false);
-
-            // Status code 12 = "The item/record was updated successfully"
-            PostReply item = await response.GetDataObject().ConfigureAwait(false);
-
-            // TODO: Previous code checked for item=null
-            return item.StatusCode == 12;
-        }
-
         private async Task<bool> ManipulateMediaListAsync(string listId, int movieId, string method)
         {
             RequireSessionId(SessionType.UserSession);
 
             if (string.IsNullOrWhiteSpace(listId))
-                throw new ArgumentNullException("listId");
+                throw new ArgumentNullException(nameof(listId));
 
             // Movie Id is expected by the API and can not be null
             if (movieId <= 0)
-                throw new ArgumentOutOfRangeException("movieId");
+                throw new ArgumentOutOfRangeException(nameof(movieId));
 
             RestRequest req = _client.Create("list/{listId}/{method}");
             req.AddUrlSegment("listId", listId);

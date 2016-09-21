@@ -1,5 +1,6 @@
 ﻿using System;
-using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace TMDbLib.Utilities
@@ -9,26 +10,42 @@ namespace TMDbLib.Utilities
         public static string GetDescription<T>(this T enumerationValue) where T : struct
         {
             Type type = enumerationValue.GetType();
-            if (!type.IsEnum)
+            TypeInfo typeInfo = type.GetTypeInfo();
+
+            if (!typeInfo.IsEnum)
             {
-                throw new ArgumentException("EnumerationValue must be of Enum type", "enumerationValue");
+                throw new ArgumentException("EnumerationValue must be of Enum type", nameof(enumerationValue));
             }
 
-            // Tries to find a DisplayAttribute for a potential friendly name for the enum
-            MemberInfo[] memberInfo = type.GetMember(enumerationValue.ToString());
-            if (memberInfo.Length > 0)
-            {
-                object[] attrs = memberInfo[0].GetCustomAttributes(typeof(DisplayAttribute), false);
+            IEnumerable<MemberInfo> members = typeof(T).GetTypeInfo().DeclaredMembers;
 
-                if (attrs.Length > 0)
+            string requestedName = enumerationValue.ToString();
+
+            // Tries to find a DisplayAttribute for a potential friendly name for the enum
+            foreach (MemberInfo member in members)
+            {
+                if (member.Name != requestedName)
+                    continue;
+
+                foreach (CustomAttributeData attributeData in member.CustomAttributes)
                 {
-                    //Pull out the description value
-                    return ((DisplayAttribute)attrs[0]).Description;
+                    if (attributeData.AttributeType != typeof(EnumValueAttribute))
+                        continue;
+
+                    // Pull out the Value
+                    if (!attributeData.ConstructorArguments.Any())
+                        break;
+
+                    CustomAttributeTypedArgument argument = attributeData.ConstructorArguments.First();
+                    string value = argument.Value as string;
+                    return value;
                 }
+
+                break;
             }
 
             // If we have no description attribute, just return the ToString of the enum
-            return enumerationValue.ToString();
+            return requestedName;
         }
     }
 }

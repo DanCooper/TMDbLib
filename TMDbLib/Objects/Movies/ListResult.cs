@@ -13,11 +13,14 @@ namespace TMDbLib.Objects.Movies
         [JsonProperty("id")]
         public string Id { get; set; }
 
-        [JsonProperty("item_Count")]
-        public int ItemCount { get; set; }
-
+        /// <summary>
+        /// A language code, e.g. en
+        /// </summary>
         [JsonProperty("iso_639_1")]
         public string Iso_639_1 { get; set; }
+
+        [JsonProperty("item_Count")]
+        public int ItemCount { get; set; }
 
         [JsonProperty("name")]
         public string Name { get; set; }

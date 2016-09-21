@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using TMDbLib.Utilities;
 
 namespace TMDbLib.Objects.General
 {
@@ -6,10 +6,13 @@ namespace TMDbLib.Objects.General
     {
         Unknown,
 
-        [Display(Description = "movie")]
-        Movie,
+        [EnumValue("movie")]
+        Movie = 1,
 
-        [Display(Description = "tv")]
-        TVShow
+        [EnumValue("tv")]
+        Tv = 2,
+
+        [EnumValue("person")]
+        Person = 3
     }
 }

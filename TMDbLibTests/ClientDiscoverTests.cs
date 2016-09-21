@@ -1,66 +1,55 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Xunit;
 using TMDbLib.Objects.Discover;
 using TMDbLib.Objects.General;
 using System.Linq;
 using TMDbLib.Objects.Search;
 using TMDbLibTests.Helpers;
+using TMDbLibTests.JsonHelpers;
 
 namespace TMDbLibTests
 {
-    [TestClass]
-    public class ClientDiscoverTests
+    public class ClientDiscoverTests : TestBase
     {
-        private TestConfig _config;
-
-        /// <summary>
-        /// Run once, on every test
-        /// </summary>
-        [TestInitialize]
-        public void Initiator()
-        {
-            _config = new TestConfig();
-        }
-
-        [TestMethod]
+        [Fact]
         public void TestDiscoverTvShowsNoParams()
         {
-            TestHelpers.SearchPages(i => _config.Client.DiscoverTvShowsAsync().Query(i).Result);
+            TestHelpers.SearchPages(i => Config.Client.DiscoverTvShowsAsync().Query(i).Result);
 
-            SearchContainer<SearchTv> result = _config.Client.DiscoverTvShowsAsync().Query().Result;
+            SearchContainer<SearchTv> result = Config.Client.DiscoverTvShowsAsync().Query().Result;
 
-            Assert.IsNotNull(result);
-            Assert.AreEqual(1, result.Page);
-            Assert.IsNotNull(result.Results);
-            Assert.IsTrue(result.Results.Any());
+            Assert.NotNull(result);
+            Assert.Equal(1, result.Page);
+            Assert.NotNull(result.Results);
+            Assert.True(result.Results.Any());
         }
 
-        [TestMethod]
+        [Fact]
         public void TestDiscoverTvShows()
         {
-            DiscoverTv query = _config.Client.DiscoverTvShowsAsync()
+            DiscoverTv query = Config.Client.DiscoverTvShowsAsync()
                     .WhereVoteCountIsAtLeast(100)
                     .WhereVoteAverageIsAtLeast(2);
 
             TestHelpers.SearchPages(i => query.Query(i).Result);
         }
 
-        [TestMethod]
+        [Fact]
         public void TestDiscoverMoviesNoParams()
         {
-            TestHelpers.SearchPages(i => _config.Client.DiscoverMoviesAsync().Query(i).Result);
+            TestHelpers.SearchPages(i => Config.Client.DiscoverMoviesAsync().Query(i).Result);
 
-            SearchContainer<SearchMovie> result = _config.Client.DiscoverMoviesAsync().Query().Result;
+            SearchContainer<SearchMovie> result = Config.Client.DiscoverMoviesAsync().Query().Result;
 
-            Assert.IsNotNull(result);
-            Assert.AreEqual(1, result.Page);
-            Assert.IsNotNull(result.Results);
-            Assert.IsTrue(result.Results.Any());
+            Assert.NotNull(result);
+            Assert.Equal(1, result.Page);
+            Assert.NotNull(result.Results);
+            Assert.True(result.Results.Any());
         }
 
-        [TestMethod]
+        [Fact]
         public void TestDiscoverMovies()
         {
-            DiscoverMovie query = _config.Client.DiscoverMoviesAsync()
+            DiscoverMovie query = Config.Client.DiscoverMoviesAsync()
                     .WhereVoteCountIsAtLeast(1000)
                     .WhereVoteAverageIsAtLeast(2);
 

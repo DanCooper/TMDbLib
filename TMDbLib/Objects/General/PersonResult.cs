@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json;
+using TMDbLib.Objects.Search;
 
 namespace TMDbLib.Objects.General
 {
@@ -12,18 +13,15 @@ namespace TMDbLib.Objects.General
         public int Id { get; set; }
 
         [JsonProperty("known_for")]
-        public List<MediaKnownFor> KnownFor { get; set; }
+        public List<KnownForBase> KnownFor { get; set; }
 
         [JsonProperty("name")]
         public string Name { get; set; }
 
-        [JsonProperty("bson_id")]
-        public string Bson_Id { get; set; }
+        [JsonProperty("popularity")]
+        public double Popularity { get; set; }
 
-        [JsonProperty("profile-path")]
+        [JsonProperty("profile_path")]
         public string ProfilePath { get; set; }
-
-        [JsonProperty("url")]
-        public string Url { get; set; }
     }
 }

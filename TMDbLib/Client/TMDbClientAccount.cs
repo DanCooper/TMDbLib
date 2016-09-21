@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using TMDbLib.Utilities;
 using System.Globalization;
 using System.Threading.Tasks;
 using TMDbLib.Objects.Account;
@@ -7,57 +7,11 @@ using TMDbLib.Objects.General;
 using TMDbLib.Objects.Lists;
 using TMDbLib.Objects.Search;
 using TMDbLib.Rest;
-using TMDbLib.Utilities;
 
 namespace TMDbLib.Client
 {
     public partial class TMDbClient
     {
-        /// <summary>
-        /// Will retrieve the details of the account associated with the current session id
-        /// </summary>
-        /// <remarks>Requires a valid user session</remarks>
-        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public async Task<AccountDetails> AccountGetDetailsAsync()
-        {
-            RequireSessionId(SessionType.UserSession);
-
-            RestRequest request = _client.Create("account");
-            AddSessionId(request, SessionType.UserSession);
-
-            AccountDetails response = await request.ExecuteGet<AccountDetails>().ConfigureAwait(false);
-
-            return response;
-        }
-
-        /// <summary>
-        /// Retrieve all lists associated with the provided account id
-        /// This can be lists that were created by the user or lists marked as favorite
-        /// </summary>
-        /// <remarks>Requires a valid user session</remarks>
-        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public async Task<SearchContainer<List>> AccountGetListsAsync(int page = 1, string language = null)
-        {
-            RequireSessionId(SessionType.UserSession);
-
-            RestRequest request = _client.Create("account/{accountId}/lists");
-            request.AddUrlSegment("accountId", ActiveAccount.Id.ToString(CultureInfo.InvariantCulture));
-            AddSessionId(request, SessionType.UserSession);
-
-            if (page > 1)
-            {
-                request.AddQueryString("page", page.ToString());
-            }
-
-            language = language ?? DefaultLanguage;
-            if (!string.IsNullOrWhiteSpace(language))
-                request.AddQueryString("language", language);
-
-            SearchContainer<List> response = await request.ExecuteGet<SearchContainer<List>>().ConfigureAwait(false);
-
-            return response;
-        }
-
         /// <summary>
         /// Change the favorite status of a specific movie. Either make the movie a favorite or remove that status depending on the supplied boolean value.
         /// </summary>
@@ -111,6 +65,23 @@ namespace TMDbLib.Client
         }
 
         /// <summary>
+        /// Will retrieve the details of the account associated with the current session id
+        /// </summary>
+        /// <remarks>Requires a valid user session</remarks>
+        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
+        public async Task<AccountDetails> AccountGetDetailsAsync()
+        {
+            RequireSessionId(SessionType.UserSession);
+
+            RestRequest request = _client.Create("account");
+            AddSessionId(request, SessionType.UserSession);
+
+            AccountDetails response = await request.ExecuteGet<AccountDetails>().ConfigureAwait(false);
+
+            return response;
+        }
+
+        /// <summary>
         /// Get a list of all the movies marked as favorite by the current user
         /// </summary>
         /// <remarks>Requires a valid user session</remarks>
@@ -139,6 +110,34 @@ namespace TMDbLib.Client
         }
 
         /// <summary>
+        /// Retrieve all lists associated with the provided account id
+        /// This can be lists that were created by the user or lists marked as favorite
+        /// </summary>
+        /// <remarks>Requires a valid user session</remarks>
+        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
+        public async Task<SearchContainer<AccountList>> AccountGetListsAsync(int page = 1, string language = null)
+        {
+            RequireSessionId(SessionType.UserSession);
+
+            RestRequest request = _client.Create("account/{accountId}/lists");
+            request.AddUrlSegment("accountId", ActiveAccount.Id.ToString(CultureInfo.InvariantCulture));
+            AddSessionId(request, SessionType.UserSession);
+
+            if (page > 1)
+            {
+                request.AddQueryString("page", page.ToString());
+            }
+
+            language = language ?? DefaultLanguage;
+            if (!string.IsNullOrWhiteSpace(language))
+                request.AddQueryString("language", language);
+
+            SearchContainer<AccountList> response = await request.ExecuteGet<SearchContainer<AccountList>>().ConfigureAwait(false);
+
+            return response;
+        }
+
+        /// <summary>
         /// Get a list of all the movies on the current users match list
         /// </summary>
         /// <remarks>Requires a valid user session</remarks>
@@ -150,20 +149,6 @@ namespace TMDbLib.Client
             string language = null)
         {
             return await GetAccountList<SearchMovie>(page, sortBy, sortOrder, language, AccountListsMethods.MovieWatchlist).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Get a list of all the tv shows on the current users match list
-        /// </summary>
-        /// <remarks>Requires a valid user session</remarks>
-        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public async Task<SearchContainer<SearchTv>> AccountGetTvWatchlistAsync(
-            int page = 1,
-            AccountSortBy sortBy = AccountSortBy.Undefined,
-            SortOrder sortOrder = SortOrder.Undefined,
-            string language = null)
-        {
-            return await GetAccountList<SearchTv>(page, sortBy, sortOrder, language, AccountListsMethods.TvWatchlist).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -181,31 +166,45 @@ namespace TMDbLib.Client
         }
 
         /// <summary>
-        /// Get a list of all the tv shows rated by the current user
-        /// </summary>
-        /// <remarks>Requires a valid user session</remarks>
-        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public async Task<SearchContainer<SearchTv>> AccountGetRatedTvShowsAsync(
-            int page = 1,
-            AccountSortBy sortBy = AccountSortBy.Undefined,
-            SortOrder sortOrder = SortOrder.Undefined,
-            string language = null)
-        {
-            return await GetAccountList<SearchTv>(page, sortBy, sortOrder, language, AccountListsMethods.RatedTv).ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Get a list of all the tv show episodes rated by the current user
         /// </summary>
         /// <remarks>Requires a valid user session</remarks>
         /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
-        public async Task<SearchContainer<SearchTvEpisode>> AccountGetRatedTvShowEpisodesAsync(
+        public async Task<SearchContainer<AccountSearchTvEpisode>> AccountGetRatedTvShowEpisodesAsync(
             int page = 1,
             AccountSortBy sortBy = AccountSortBy.Undefined,
             SortOrder sortOrder = SortOrder.Undefined,
             string language = null)
         {
-            return await GetAccountList<SearchTvEpisode>(page, sortBy, sortOrder, language, AccountListsMethods.RatedTvEpisodes).ConfigureAwait(false);
+            return await GetAccountList<AccountSearchTvEpisode>(page, sortBy, sortOrder, language, AccountListsMethods.RatedTvEpisodes).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Get a list of all the tv shows rated by the current user
+        /// </summary>
+        /// <remarks>Requires a valid user session</remarks>
+        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
+        public async Task<SearchContainer<AccountSearchTv>> AccountGetRatedTvShowsAsync(
+            int page = 1,
+            AccountSortBy sortBy = AccountSortBy.Undefined,
+            SortOrder sortOrder = SortOrder.Undefined,
+            string language = null)
+        {
+            return await GetAccountList<AccountSearchTv>(page, sortBy, sortOrder, language, AccountListsMethods.RatedTv).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Get a list of all the tv shows on the current users match list
+        /// </summary>
+        /// <remarks>Requires a valid user session</remarks>
+        /// <exception cref="UserSessionRequiredException">Thrown when the current client object doens't have a user session assigned.</exception>
+        public async Task<SearchContainer<SearchTv>> AccountGetTvWatchlistAsync(
+            int page = 1,
+            AccountSortBy sortBy = AccountSortBy.Undefined,
+            SortOrder sortOrder = SortOrder.Undefined,
+            string language = null)
+        {
+            return await GetAccountList<SearchTv>(page, sortBy, sortOrder, language, AccountListsMethods.TvWatchlist).ConfigureAwait(false);
         }
 
         private async Task<SearchContainer<T>> GetAccountList<T>(int page, AccountSortBy sortBy, SortOrder sortOrder, string language, AccountListsMethods method)
@@ -236,19 +235,19 @@ namespace TMDbLib.Client
 
         private enum AccountListsMethods
         {
-            [Display(Description = "favorite/movies")]
+            [EnumValue("favorite/movies")]
             FavoriteMovies,
-            [Display(Description = "favorite/tv")]
+            [EnumValue("favorite/tv")]
             FavoriteTv,
-            [Display(Description = "rated/movies")]
+            [EnumValue("rated/movies")]
             RatedMovies,
-            [Display(Description = "rated/tv")]
+            [EnumValue("rated/tv")]
             RatedTv,
-            [Display(Description = "rated/tv/episodes")]
+            [EnumValue("rated/tv/episodes")]
             RatedTvEpisodes,
-            [Display(Description = "watchlist/movies")]
+            [EnumValue("watchlist/movies")]
             MovieWatchlist,
-            [Display(Description = "watchlist/tv")]
+            [EnumValue("watchlist/tv")]
             TvWatchlist,
         }
     }

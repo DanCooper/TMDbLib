@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using TMDbLib.Objects.General;
+using TMDbLib.Objects.Search;
 
 namespace TMDbLib.Objects.Companies
 {
@@ -20,13 +21,13 @@ namespace TMDbLib.Objects.Companies
         [JsonProperty("logo_path")]
         public string LogoPath { get; set; }
 
+        [JsonProperty("movies")]
+        public SearchContainer<SearchMovie> Movies { get; set; }
+
         [JsonProperty("name")]
         public string Name { get; set; }
 
         [JsonProperty("parent_company")]
-        public ParentCompany ParentCompany { get; set; }
-
-        [JsonProperty("movies")]
-        public SearchContainer<MovieResult> Movies { get; set; }
+        public SearchCompany ParentCompany { get; set; }
     }
 }
